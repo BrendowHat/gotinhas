@@ -25,9 +25,11 @@ body {
   font-family: var(--corpo);
   font-size: 17px;
   -webkit-tap-highlight-color: transparent;
+  font-variant-ligatures: none;
+  font-feature-settings: "liga" 0, "clig" 0;
   overscroll-behavior: none;
 }
-button, input, select { font: inherit; color: inherit; }
+button, input, select { font: inherit; color: inherit; font-variant-ligatures: none; }
 a { color: var(--azul-esc); }
 
 #app {

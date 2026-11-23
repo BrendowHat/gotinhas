@@ -497,7 +497,6 @@ function telaConfig() {
       <div class="grade2">
         <label class="campo">Meta (ml)<input class="pix" name="metaMl" type="number" min="100" max="10000" step="50" value="${p.metaMl}"></label>
         <label class="campo">Copo (ml)<input class="pix" name="copoMl" type="number" min="50" max="2000" step="10" value="${p.copoMl}"></label>
-        <span></span>
         <label class="campo">Início<input class="pix" name="inicio" type="time" value="${esc(p.inicio)}" style="font-family:var(--corpo);font-size:17px"></label>
         <label class="campo">Fim<input class="pix" name="fim" type="time" value="${esc(p.fim)}" style="font-family:var(--corpo);font-size:17px"></label>
       </div>
