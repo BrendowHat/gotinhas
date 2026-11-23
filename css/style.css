@@ -223,3 +223,9 @@ nav.barra-nav a.ativo { background: var(--azul-claro); color: #0F4C9E; font-weig
 .acess input:checked + span { border: 3px solid var(--ink); background: var(--azul-claro); }
 .sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); }
 .cor, .acess { position: relative; }
+
+/* Celular com tela "larga" (zoom de tela pequeno ou modo site para computador):
+   ocupa a largura toda em vez de ficar uma coluna estreita no meio */
+@media (pointer: coarse) {
+  #app, nav.barra-nav, .folha { max-width: none; }
+}
