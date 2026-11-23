@@ -10,7 +10,6 @@
 //   API_KEY      (Text)    → apiKey do firebase-config.js
 //   SITE_ORIGIN  (Text)    → https://brendowhat.github.io
 
-const FUSO = "America/Sao_Paulo";
 const ESPERA_MIN = 30;      // intervalo mínimo entre cutucadas
 const MAX_POR_DIA = 5;      // cutucadas por dia
 
@@ -27,7 +26,7 @@ export default {
       return json({ erro: "nao-encontrado" }, 404, cors);
     } catch (e) {
       const status = e.status || 500;
-      return json({ erro: e.code || "erro-interno", faltaMin: e.faltaMin, detalhe: status === 500 ? String(e.message || e) : undefined }, status, cors);
+      return json({ erro: e.code || "erro-interno", faltaMin: e.faltaMin, janela: e.janela, agora: e.agora, detalhe: status === 500 ? String(e.message || e) : undefined }, status, cors);
     }
   },
 
@@ -55,14 +54,15 @@ function falha(code, status = 400, extra = {}) {
 }
 
 // ------------------------------------------------------------------ hora de São Paulo
+// Brasil não tem horário de verão desde 2019: São Paulo = UTC-3 fixo.
+// (conta direta, sem depender do suporte a fusos do Intl no Worker)
 export function agoraSP(d = new Date()) {
-  const p = Object.fromEntries(
-    new Intl.DateTimeFormat("en-CA", { timeZone: FUSO, year: "numeric", month: "2-digit", day: "2-digit", hour: "2-digit", minute: "2-digit", hourCycle: "h23" })
-      .formatToParts(d).map((x) => [x.type, x.value])
-  );
-  return { dia: `${p.year}-${p.month}-${p.day}`, min: Number(p.hour) * 60 + Number(p.minute), hora: Number(p.hour) };
+  const sp = new Date(d.getTime() - 3 * 3600 * 1000);
+  const dia = `${sp.getUTCFullYear()}-${String(sp.getUTCMonth() + 1).padStart(2, "0")}-${String(sp.getUTCDate()).padStart(2, "0")}`;
+  return { dia, min: sp.getUTCHours() * 60 + sp.getUTCMinutes(), hora: sp.getUTCHours() };
 }
-const paraMin = (hhmm = "00:00") => { const [h, m] = hhmm.split(":").map(Number); return h * 60 + (m || 0); };
+const paraMin = (hhmm) => { const [h, m] = String(hhmm || "00:00").split(":").map(Number); return (h || 0) * 60 + (m || 0); };
+const hhmm = (min) => `${String(Math.floor(min / 60)).padStart(2, "0")}:${String(min % 60).padStart(2, "0")}`;
 export function dentroDaJanela(perfil, min) {
   return min >= paraMin(perfil.inicio || "08:00") && min <= paraMin(perfil.fim || "18:00");
 }
@@ -230,7 +230,8 @@ async function cutucar(req, env) {
   if (perfilDela.cutucadas === false) throw falha("ela-desligou");
 
   const agora = agoraSP();
-  if (!dentroDaJanela(perfilDela, agora.min)) throw falha("fora-do-horario", 429);
+  if (!dentroDaJanela(perfilDela, agora.min))
+    throw falha("fora-do-horario", 429, { janela: `${perfilDela.inicio || "08:00"}–${perfilDela.fim || "18:00"}`, agora: hhmm(agora.min) });
 
   const diaDela = totalDoDia(await fsGet(env, `users/${ela}/dias/${agora.dia}`), perfilDela.metaMl);
   if (diaDela.total >= diaDela.meta) throw falha("ela-ja-bateu", 429);

@@ -541,7 +541,7 @@ function erroCutucada(e) {
   return ({
     espera: `Calma! Próxima cutucada em ${e.faltaMin || 30} min.`,
     "limite-dia": "Já foram 5 cutucadas hoje. Amanhã tem mais 😉",
-    "fora-do-horario": `${nome} está fora do horário de lembretes.`,
+    "fora-do-horario": `${nome} está fora do horário de lembretes${e.janela ? ` (${e.janela}; agora ${e.agora})` : ""}.`,
     "ela-ja-bateu": `${nome} já bateu a meta hoje ♥`,
     "ela-sem-notificacao": `${nome} ainda não ativou as notificações (Config → Notificações).`,
     "ela-desligou": `${nome} desligou as cutucadas.`,
