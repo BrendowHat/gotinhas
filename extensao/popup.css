@@ -36,3 +36,6 @@ p { margin: 0; line-height: 1.35; }
 .carregando { text-align: center; padding: 30px 0; }
 .erro { color: #9B1C1C; font-size: 14px; }
 .outro[hidden] { display: none; }
+.rosa-btn { background: #FCE3EC; color: #7A1F45; border-color: #9C2F5A; font-family: 'Pixelify Sans', system-ui, sans-serif; font-size: 16px; }
+.aviso-cut { margin: 0; padding: 10px; text-align: center; border: 3px solid #12324F; background: #CFE6FB; font-size: 15px; }
+.aviso-cut.ok { background: #FCE3EC; color: #7A1F45; border-color: #9C2F5A; }

@@ -16,7 +16,7 @@ service cloud.firestore {
     match /users/{uid} {
       allow read: if podeVer(uid);
       allow write: if logado() && eu() == uid
-        && request.resource.data.keys().hasOnly(['nome','cor','metaMl','copoMl','inicio','fim','duplaId','codigo','lembretes','cutucadas','intervaloMin'])
+        && request.resource.data.keys().hasOnly(['nome','cor','metaMl','copoMl','inicio','fim','duplaId','codigo','lembretes','cutucadas','intervaloMin','acessorio'])
         && (!('metaMl' in request.resource.data) || (request.resource.data.metaMl is int && request.resource.data.metaMl >= 100 && request.resource.data.metaMl <= 10000))
         && (!('nome' in request.resource.data) || (request.resource.data.nome is string && request.resource.data.nome.size() <= 30));
 

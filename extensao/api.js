@@ -1,6 +1,6 @@
 // Conversa com o Firebase direto pela API REST (sem SDK, para caber nas regras do Chrome MV3).
 // As regras do Firestore valem do mesmo jeito: a extensão só vê o que você veria no site.
-import { API_KEY, PROJECT_ID } from "./config.js";
+import { API_KEY, PROJECT_ID, WORKER_URL } from "./config.js";
 
 const FS = `https://firestore.googleapis.com/v1/projects/${PROJECT_ID}/databases/(default)/documents`;
 export const PERFIL_PADRAO = { nome: "", cor: "azul", metaMl: 2000, copoMl: 250, inicio: "08:00", fim: "17:48", intervaloMin: 60 };
@@ -167,4 +167,13 @@ export async function importarHistoricoAntigo() {
   }
   await chrome.storage.local.set({ importadoV2: true });
   return n;
+}
+
+// Cutucada: o mesmo Worker do site faz o anti-spam (30 min, 5 por dia, horário dela, meta).
+export async function cutucar() {
+  const a = await idToken();
+  const r = await fetch(`${WORKER_URL}/cutucar`, { method: "POST", headers: { Authorization: `Bearer ${a.idToken}` } });
+  const d = await r.json().catch(() => ({}));
+  if (!r.ok) { const e = new Error(d.erro || "erro"); Object.assign(e, d); throw e; }
+  return d;
 }

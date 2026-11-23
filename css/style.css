@@ -205,3 +205,19 @@ nav.barra-nav a.ativo { background: var(--azul-claro); color: #0F4C9E; font-weig
 .conquista .ic { color: #C99A06; flex-shrink: 0; }
 .conquista.travada { background: #E3EBF3; border-style: dashed; border-color: #7C95AE; }
 .conquista.travada .ic { color: #7C95AE; }
+
+/* ---------- personalizar gotinha ---------- */
+.vitrine { display: flex; justify-content: center; padding: 8px 0; background: var(--ceu); border: 2px dashed var(--azul-medio); }
+.escolha { border: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 8px; }
+.escolha legend { font-size: 16px; padding: 0; margin-bottom: 8px; }
+.cores { display: grid; grid-template-columns: repeat(8, minmax(0, 1fr)); gap: 6px; }
+.cor input, .acess input { position: absolute; opacity: 0; pointer-events: none; }
+.cor span { display: block; aspect-ratio: 1; min-height: 32px; border: 3px solid; cursor: pointer; }
+.cor input:checked + span { outline: 3px solid var(--ink); outline-offset: 2px; }
+.cor input:focus-visible + span, .acess input:focus-visible + span { outline: 3px dashed var(--azul-esc); outline-offset: 2px; }
+.acessorios { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 6px; }
+.acess span { display: flex; flex-direction: column; align-items: center; gap: 2px; padding: 6px 2px; border: 2px solid var(--azul-medio); background: #fff; cursor: pointer; text-align: center; }
+.acess small { font-size: 12px; line-height: 1.1; }
+.acess input:checked + span { border: 3px solid var(--ink); background: var(--azul-claro); }
+.sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); }
+.cor, .acess { position: relative; }

@@ -1,5 +1,5 @@
 import { criarStore, chaveDia, normalizarDia, PERFIL_PADRAO } from "./store.js";
-import { gotaSVG, humorDe, HUMOR_TEXTO, CORACAO_SVG } from "./gota.js";
+import { gotaSVG, humorDe, HUMOR_TEXTO, CORACAO_SVG, CORES, ACESSORIOS } from "./gota.js";
 
 // ------------------------------------------------------------------ estado
 const S = {
@@ -196,7 +196,7 @@ function cartaoPessoa(uid, key = S.hoje) {
   const humor = humorDe(d.totalMl, d.metaMl, p.inicio, p.fim);
   const rosa = p.cor === "rosa";
   return `<section class="caixa sombra pessoa">
-    ${gotaSVG(p.cor, humor, 7, `${esc(p.nome)}: ${HUMOR_TEXTO[humor]}`)}
+    ${gotaSVG(p.cor, humor, 7, `${esc(p.nome)}: ${HUMOR_TEXTO[humor]}`, p.acessorio)}
     <span class="nome">${esc(p.nome) || "—"}</span>
     <span>${d.totalMl} / ${d.metaMl} ml</span>
     <div class="barra ${rosa ? "rosa" : ""}"><i style="width:${pct}%"></i></div>
@@ -246,9 +246,9 @@ function telaLogin() {
     <div class="nuvem" style="right:26px;top:140px;width:80px"></div>
     <div class="centro">
       <div class="linha" style="align-items:flex-end;gap:16px">
-        ${gotaSVG("azul", "feliz", 9)}
+        ${gotaSVG("azul", "feliz", 9, "", "fone")}
         <span style="margin-bottom:34px">${CORACAO_SVG("#F28DB2", 40)}</span>
-        ${gotaSVG("rosa", "feliz", 9)}
+        ${gotaSVG("rosa", "feliz", 9, "", "laco")}
       </div>
       <h1 class="logo">Gotinhas</h1>
       <p style="font-size:20px;max-width:280px">Água em dupla, um gole de cada vez.</p>
@@ -368,7 +368,7 @@ function telaEditar(key = S.hoje) {
       <p class="sub">Errou um copo? Ajuste a quantidade, o horário ou apague. Ela vê o total atualizado na hora.</p>
     </div>
     <section class="caixa sombra linha" style="gap:14px">
-      ${gotaSVG(p.cor, humor, 5)}
+      ${gotaSVG(p.cor, humor, 5, "", p.acessorio)}
       <div style="display:flex;flex-direction:column;gap:4px">
         <span class="sub" style="font-size:15px">Total do dia</span>
         <span style="font-family:var(--pixel);font-size:14px">${d.totalMl} / ${d.metaMl} ml</span>
@@ -457,7 +457,7 @@ function telaDia(key) {
   return `<div class="tela com-nav">
     <a class="voltar" href="#/calendario">‹ Calendário</a>
     <h1>${esc(rotuloDia(key))}</h1>
-    ${both ? `<div class="caixa rosa linha" style="justify-content:center">${gotaSVG(S.perfil.cor, "feliz", 4)}<span>Os dois bateram a meta ♥</span>${gotaSVG(perfilDe(S.ela).cor, "feliz", 4)}</div>` : ""}
+    ${both ? `<div class="caixa rosa linha" style="justify-content:center">${gotaSVG(S.perfil.cor, "feliz", 4, "", S.perfil.acessorio)}<span>Os dois bateram a meta ♥</span>${gotaSVG(perfilDe(S.ela).cor, "feliz", 4, "", perfilDe(S.ela).acessorio)}</div>` : ""}
     <div class="grade2">${resumo(eu, a, S.perfil.cor === "rosa")}${b ? resumo(S.ela, b, perfilDe(S.ela).cor === "rosa") : ""}</div>
     <section class="caixa" style="display:flex;flex-direction:column;gap:8px">
       <h2>Água por hora</h2>
@@ -480,17 +480,21 @@ function telaConfig() {
   return `<div class="tela com-nav">
     <h1>Config</h1>
     <form id="form-config" class="caixa sombra" style="display:flex;flex-direction:column;gap:12px">
-      <div class="linha" style="gap:14px">
-        ${gotaSVG(p.cor, "feliz", 5)}
-        <label class="campo cresce">Seu nome<input class="pix" name="nome" maxlength="30" value="${esc(p.nome)}" style="font-family:var(--corpo);font-size:17px"></label>
-      </div>
+      <label class="campo">Seu nome<input class="pix" name="nome" maxlength="30" value="${esc(p.nome)}" style="font-family:var(--corpo);font-size:17px"></label>
+      <div class="vitrine" id="prev-gota">${gotaSVG(p.cor, "feliz", 12, "Sua gotinha", p.acessorio)}</div>
+      <fieldset class="escolha">
+        <legend>Cor</legend>
+        <div class="cores">
+          ${Object.entries(CORES).map(([k, c]) => `<label class="cor" title="${c.nome}"><input type="radio" name="cor" value="${k}" ${p.cor === k ? "checked" : ""}><span style="background:${c.base};border-color:${c.contorno}"></span><b class="sr">${c.nome}</b></label>`).join("")}
+        </div>
+      </fieldset>
+      <fieldset class="escolha">
+        <legend>Acessório</legend>
+        <div class="acessorios">
+          ${Object.entries(ACESSORIOS).map(([k, nome]) => `<label class="acess"><input type="radio" name="acessorio" value="${k}" ${(p.acessorio || "nenhum") === k ? "checked" : ""}><span>${gotaSVG(p.cor, "normal", 3.4, "", k)}<small>${nome}</small></span></label>`).join("")}
+        </div>
+      </fieldset>
       <div class="grade2">
-        <label class="campo">Sua cor
-          <select name="cor" class="pix" style="font-family:var(--corpo);font-size:17px">
-            <option value="azul" ${p.cor === "azul" ? "selected" : ""}>Azul</option>
-            <option value="rosa" ${p.cor === "rosa" ? "selected" : ""}>Rosa</option>
-          </select>
-        </label>
         <label class="campo">Meta (ml)<input class="pix" name="metaMl" type="number" min="100" max="10000" step="50" value="${p.metaMl}"></label>
         <label class="campo">Copo (ml)<input class="pix" name="copoMl" type="number" min="50" max="2000" step="10" value="${p.copoMl}"></label>
         <span></span>
@@ -502,7 +506,7 @@ function telaConfig() {
       <p role="status" style="font-size:15px;color:#1E6B35;min-height:1em">${esc(S.cfgMsg)}</p>
     </form>
     <section class="caixa rosa linha">
-      ${gotaSVG(pd?.cor || "rosa", "feliz", 4)}
+      ${gotaSVG(pd?.cor || "rosa", "feliz", 4, "", pd?.acessorio)}
       <div style="display:flex;flex-direction:column;gap:2px" class="cresce">
         <span>${pd ? `Dupla com ${esc(pd.nome)}` : "Esperando sua dupla entrar"}</span>
         <span style="font-size:14px">${codigoAtual() ? `código ${esc(codigoAtual())}` : ""}</span>
@@ -596,7 +600,7 @@ function telaConectarExtensao() {
     erro: ["Não deu pra conectar. Tente de novo.", "triste"],
   }[st] || ["Conectando…", "normal"];
   return `<div class="tela"><div class="centro">
-    ${gotaSVG(S.perfil.cor, msg[1], 9)}
+    ${gotaSVG(S.perfil.cor, msg[1], 9, "", S.perfil.acessorio)}
     <h1>Extensão do Chrome</h1>
     <p>${msg[0]}</p>
     <a class="btn prim" href="#/hoje">Ir para o app</a>
@@ -675,11 +679,11 @@ function telaResumo() {
   const coracoes = dias.filter((k) => ambos(k)).length;
   const pa = A.meta ? A.ml / A.meta : 0, pb = B && B.meta ? B.ml / B.meta : 0;
   const nomeEla = esc(perfilDe(S.ela).nome || "Ela");
-  let campeao = "", corCamp = S.perfil.cor;
+  let campeao = "", corCamp = S.perfil.cor, acCamp = S.perfil.acessorio;
   if (B) {
     if (Math.abs(pa - pb) < 0.01) campeao = "Empate! ♥";
     else if (pa > pb) campeao = `${esc(S.perfil.nome || "Você")}`;
-    else { campeao = nomeEla; corCamp = perfilDe(S.ela).cor; }
+    else { campeao = nomeEla; corCamp = perfilDe(S.ela).cor; acCamp = perfilDe(S.ela).acessorio; }
   }
   const max = Math.max(2500, ...dias.map((k) => Math.max(diaDe(eu, k).totalMl, B ? diaDe(S.ela, k).totalMl : 0)));
   const nomeDia = (k) => maiuscula(dataDe(k).toLocaleDateString("pt-BR", { weekday: "short" }).replace(".", "")) + " " + k.slice(8);
@@ -689,7 +693,7 @@ function telaResumo() {
     ${B ? `<section class="caixa sombra linha" style="gap:16px">
       <div style="display:flex;flex-direction:column;align-items:center;gap:2px">
         <svg aria-hidden="true" width="40" height="20" viewBox="0 0 8 4" shape-rendering="crispEdges"><path fill="#C99A06" d="M0 0h1v4H0zM3 0h2v4H3zM7 0h1v4H7zM0 2h8v2H0z"/></svg>
-        ${gotaSVG(corCamp, "feliz", 7)}
+        ${gotaSVG(corCamp, "feliz", 7, "", acCamp)}
       </div>
       <div style="display:flex;flex-direction:column;gap:6px">
         <span class="sub" style="font-size:15px">${campeao.includes("Empate") ? "Resultado" : "Campeão(ã) da semana"}</span>
@@ -902,6 +906,13 @@ $app.addEventListener("click", async (ev) => {
 
 $app.addEventListener("change", async (ev) => {
   const el = ev.target;
+  if (el.name === "cor" || el.name === "acessorio") {
+    const f = document.getElementById("form-config");
+    const cor = f.cor.value, ac = f.acessorio.value;
+    document.getElementById("prev-gota").innerHTML = gotaSVG(cor, "feliz", 12, "Sua gotinha", ac);
+    if (el.name === "cor") f.querySelectorAll(".acess span").forEach((sp, i) => { sp.firstElementChild.outerHTML = gotaSVG(cor, "normal", 3.4, "", Object.keys(ACESSORIOS)[i]); });
+    return;
+  }
   if (el.id === "cfg-intervalo") { await S.store.salvarPerfil(S.user.uid, { intervaloMin: Number(el.value) }); return; }
   if (el.id === "cfg-cutucadas") { await S.store.salvarPerfil(S.user.uid, { cutucadas: el.checked }); return; }
   if (el.dataset.acao === "hora") {
@@ -927,7 +938,8 @@ $app.addEventListener("submit", async (ev) => {
     const copo = Math.round(Number(f.copoMl.value));
     const dados = {
       nome: f.nome.value.trim().slice(0, 30) || S.perfil.nome,
-      cor: f.cor.value === "rosa" ? "rosa" : "azul",
+      cor: CORES[f.cor.value] ? f.cor.value : "azul",
+      acessorio: ACESSORIOS[f.acessorio.value] ? f.acessorio.value : "nenhum",
       metaMl: Math.min(10000, Math.max(100, meta || 2000)),
       copoMl: Math.min(2000, Math.max(50, copo || 250)),
       inicio: f.inicio.value || "08:00",

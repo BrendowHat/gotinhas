@@ -1,4 +1,4 @@
-import { conectado, carregar, doCache, adicionar, desconectar, chaveDia } from "./api.js";
+import { conectado, carregar, doCache, adicionar, desconectar, chaveDia, cutucar } from "./api.js";
 import { gotaSVG, humorDe, HUMOR_TEXTO, CORACAO_SVG } from "./gota.js";
 import { SITE_URL } from "./config.js";
 
@@ -7,11 +7,13 @@ let dados = null;
 let ocupado = false;
 let erro = "";
 let offline = false;
+let cutucadaMsg = "";
+let cutucadaAte = 0;
 const esc = (s) => String(s ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
 
 function telaConectar() {
   $.innerHTML = `
-    <div class="linha" style="justify-content:center;gap:14px;padding-top:8px">${gotaSVG("azul", "feliz", 7)}${CORACAO_SVG("#F28DB2", 28)}${gotaSVG("rosa", "feliz", 7)}</div>
+    <div class="linha" style="justify-content:center;gap:14px;padding-top:8px">${gotaSVG("azul", "feliz", 6, "", "fone")}${CORACAO_SVG("#F28DB2", 28)}${gotaSVG("rosa", "feliz", 6, "", "laco")}</div>
     <h1 style="text-align:center;font-size:14px">Gotinhas</h1>
     <p style="text-align:center">Conecte a extensão à sua conta do site pra registrar água daqui e ver a sua dupla.</p>
     <button class="btn prim" id="conectar">Conectar com minha conta</button>
@@ -33,7 +35,7 @@ function render() {
 
   $.innerHTML = `
     <header class="linha">
-      ${gotaSVG(perfil.cor, humor, 3)}
+      ${gotaSVG(perfil.cor, humor, 3, "", perfil.acessorio)}
       <h1 class="cresce">Gotinhas</h1>
       <span class="chip ${offline ? "offline" : "ok"}">${offline ? "sem internet" : "sincronizado"}</span>
     </header>
@@ -56,10 +58,11 @@ function render() {
     </div>
     ${erro ? `<p class="erro" role="alert">${esc(erro)}</p>` : ""}
     ${ela ? `<section class="caixa rosa linha">
-      ${gotaSVG(perfilDela?.cor || "rosa", humorDe(ela.totalMl, ela.metaMl, perfilDela?.inicio, perfilDela?.fim), 3)}
+      ${gotaSVG(perfilDela?.cor || "rosa", humorDe(ela.totalMl, ela.metaMl, perfilDela?.inicio, perfilDela?.fim), 3.4, "", perfilDela?.acessorio)}
       <span class="cresce">${nomeEla}</span>
       <span>${ela.totalMl} ml · ${pctEla}%${ela.totalMl >= ela.metaMl ? " ★" : ""}</span>
-    </section>` : ""}
+    </section>
+    ${botaoCutucar(nomeEla)}` : ""}
     <section style="display:flex;flex-direction:column;gap:6px">
       <span class="sub" style="font-size:14px">Últimos 7 dias</span>
       <div class="semana">
@@ -76,6 +79,8 @@ function render() {
     </div>
     <div class="rodape"><span class="sub" style="font-size:12px">Mesma conta do site e do celular</span><button id="sair">Desconectar</button></div>`;
 
+  const bc = document.getElementById("cutucar");
+  if (bc) bc.onclick = fazerCutucada;
   $.querySelectorAll("[data-ml]").forEach((b) => (b.onclick = () => add(Number(b.dataset.ml))));
   document.getElementById("btn-outro").onclick = () => { const o = document.getElementById("outro"); o.hidden = !o.hidden; if (!o.hidden) document.getElementById("outro-ml").focus(); };
   document.getElementById("outro-ok").onclick = () => { const n = parseInt(document.getElementById("outro-ml").value, 10); if (n > 0) add(Math.min(n, 3000)); };
@@ -85,6 +90,41 @@ function render() {
   const chk = document.getElementById("lembretes");
   chrome.storage.local.get("lembretesPC").then(({ lembretesPC = true }) => (chk.checked = lembretesPC));
   chk.onchange = () => chrome.storage.local.set({ lembretesPC: chk.checked });
+}
+
+function botaoCutucar(nomeEla) {
+  if (cutucadaMsg) return `<p class="aviso-cut ${cutucadaMsg.includes("✓") ? "ok" : ""}" role="status">${esc(cutucadaMsg)}</p>`;
+  const falta = Math.ceil((cutucadaAte - Date.now()) / 60000);
+  if (falta > 0) return `<button class="btn" disabled>Próxima cutucada em ${falta} min</button>`;
+  return `<button class="btn rosa-btn" id="cutucar">Cutucar ${nomeEla} 💧</button>`;
+}
+
+function erroCutucada(e, nome) {
+  return ({
+    espera: `Calma! Próxima cutucada em ${e.faltaMin || 30} min.`,
+    "limite-dia": "Já foram 5 cutucadas hoje 😉",
+    "fora-do-horario": `${nome} está fora do horário${e.janela ? ` (${e.janela})` : ""}.`,
+    "ela-ja-bateu": `${nome} já bateu a meta hoje ♥`,
+    "ela-sem-notificacao": `${nome} ainda não ativou as notificações no app.`,
+    "ela-desligou": `${nome} desligou as cutucadas.`,
+    desconectado: "Sua conexão expirou. Conecte de novo.",
+  })[e.message] || "Não deu pra cutucar agora.";
+}
+
+async function fazerCutucada() {
+  const nome = dados.perfilDela?.nome || "Ela";
+  document.getElementById("cutucar").disabled = true;
+  try {
+    const r = await cutucar();
+    cutucadaAte = Date.now() + (r.proximaEmMin || 30) * 60000;
+    cutucadaMsg = "Cutucada enviada ✓";
+  } catch (e) {
+    cutucadaMsg = erroCutucada(e, nome);
+    if (e.faltaMin) cutucadaAte = Date.now() + e.faltaMin * 60000;
+  }
+  await chrome.storage.local.set({ cutucadaAte });
+  render();
+  setTimeout(() => { cutucadaMsg = ""; render(); }, 5000);
 }
 
 async function add(ml) {
@@ -105,6 +145,7 @@ async function add(ml) {
 
 (async function iniciar() {
   if (!(await conectado())) return telaConectar();
+  cutucadaAte = (await chrome.storage.local.get("cutucadaAte")).cutucadaAte || 0;
   dados = await doCache();
   if (dados) render();
   try {

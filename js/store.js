@@ -16,6 +16,7 @@ export const PERFIL_PADRAO = {
   lembretes: false,
   cutucadas: true,
   intervaloMin: 60,
+  acessorio: "nenhum",
 };
 
 const ALFABETO = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789"; // sem 0/O, 1/I
