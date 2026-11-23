@@ -12,4 +12,4 @@ export const firebaseConfig = {
 // vapidKey  → Firebase → Configurações do projeto → Cloud Messaging → Certificados push da Web → "Par de chaves"
 // workerUrl → endereço do Worker no Cloudflare, ex.: https://gotinhas.SEU-USUARIO.workers.dev
 export const vapidKey = "BCIwmIMFoHHDbDveZocjUYbZDjLHXOJelCKp5HJKZ83JLcwqvAIxZ666a8qcbPiAKUg2yrdlZEqWzE-9xZnwen8";
-export const workerUrl = "";
+export const workerUrl = "https://gotinhas.brendowhat.workers.dev";
