@@ -1,6 +1,6 @@
 // Cache do "esqueleto" do app para abrir rápido e funcionar sem internet.
 // Ao publicar uma versão nova, aumente o número abaixo.
-const VERSAO = "gotinhas-v13";
+const VERSAO = "gotinhas-v14";
 const ARQUIVOS = [
   "./", "index.html", "css/style.css", "js/app.js", "js/store.js", "js/gota.js",
   "js/firebase-config.js", "manifest.webmanifest",
@@ -24,7 +24,7 @@ self.addEventListener("fetch", (e) => {
   const url = new URL(e.request.url);
   if (e.request.method !== "GET" || url.origin !== location.origin) return;
   e.respondWith(
-    fetch(e.request)
+    fetch(e.request, { cache: "no-cache" }) // sempre confere com o GitHub se tem versão nova
       .then((r) => {
         const copia = r.clone();
         caches.open(VERSAO).then((c) => c.put(e.request, copia));

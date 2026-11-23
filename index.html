@@ -29,7 +29,19 @@
 <script type="module" src="js/app.js"></script>
 <script>
   if ("serviceWorker" in navigator) {
-    window.addEventListener("load", () => navigator.serviceWorker.register("sw.js").catch(() => {}));
+    window.addEventListener("load", () => {
+      navigator.serviceWorker.register("sw.js", { updateViaCache: "none" }).then((reg) => {
+        reg.update().catch(() => {});
+        document.addEventListener("visibilitychange", () => { if (document.visibilityState === "visible") reg.update().catch(() => {}); });
+      }).catch(() => {});
+    });
+    // quando uma versão nova assume, recarrega uma vez pra já mostrar a novidade
+    let recarregou = false;
+    navigator.serviceWorker.addEventListener("controllerchange", () => {
+      if (recarregou) return;
+      recarregou = true;
+      location.reload();
+    });
   }
 </script>
 </body>
