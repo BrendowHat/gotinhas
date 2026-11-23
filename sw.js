@@ -1,6 +1,6 @@
 // Cache do "esqueleto" do app para abrir rápido e funcionar sem internet.
 // Ao publicar uma versão nova, aumente o número abaixo.
-const VERSAO = "gotinhas-v15";
+const VERSAO = "gotinhas-v16";
 const ARQUIVOS = [
   "./", "index.html", "css/style.css", "js/app.js", "js/store.js", "js/gota.js",
   "js/firebase-config.js", "manifest.webmanifest",
