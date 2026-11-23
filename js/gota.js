@@ -74,10 +74,13 @@ export function humorDe(consumido, meta, inicio = "08:00", fim = "18:00", agora 
   const min = agora.getHours() * 60 + agora.getMinutes();
   const [hi, mi] = inicio.split(":").map(Number);
   const [hf, mf] = fim.split(":").map(Number);
-  const ini = hi * 60 + mi, end = hf * 60 + mf;
+  const ini = hi * 60 + mi;
+  let end = hf * 60 + mf;
+  if (end <= ini) end += 1440; // janela que passa da meia-noite (ex.: 08:00–00:00)
+  const m = min < ini && end > 1440 && min <= end - 1440 ? min + 1440 : min;
   let esperado = 0;
-  if (min >= end) esperado = 100;
-  else if (min > ini) esperado = ((min - ini) / Math.max(1, end - ini)) * 100;
+  if (m >= end) esperado = 100;
+  else if (m > ini) esperado = ((m - ini) / Math.max(1, end - ini)) * 100;
   if (pct < 30 && esperado >= 20) return "sede";
   if (pct < esperado - 15) return "triste";
   return "normal";

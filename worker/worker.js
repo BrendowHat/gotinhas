@@ -63,8 +63,16 @@ export function agoraSP(d = new Date()) {
 }
 const paraMin = (hhmm) => { const [h, m] = String(hhmm || "00:00").split(":").map(Number); return (h || 0) * 60 + (m || 0); };
 const hhmm = (min) => `${String(Math.floor(min / 60)).padStart(2, "0")}:${String(min % 60).padStart(2, "0")}`;
+// Janela de horário. Se o fim for menor ou igual ao início (ex.: 08:00–00:00), ela passa da meia-noite.
+export function posicaoNaJanela(perfil, min) {
+  const ini = paraMin(perfil.inicio || "08:00");
+  let fim = paraMin(perfil.fim || "18:00");
+  if (fim <= ini) fim += 1440;
+  const m = min < ini ? min + 1440 : min;
+  return { dentro: m >= ini && m <= fim, desdeInicio: m - ini };
+}
 export function dentroDaJanela(perfil, min) {
-  return min >= paraMin(perfil.inicio || "08:00") && min <= paraMin(perfil.fim || "18:00");
+  return posicaoNaJanela(perfil, min).dentro;
 }
 
 // ------------------------------------------------------------------ Google: token de acesso da conta de serviço
@@ -269,9 +277,9 @@ async function extToken(req, env) {
 
 // ------------------------------------------------------------------ cron: lembretes
 export function deveLembrar(perfil, agora) {
-  if (!dentroDaJanela(perfil, agora.min)) return false;
+  const { dentro, desdeInicio } = posicaoNaJanela(perfil, agora.min);
+  if (!dentro) return false;
   const intervalo = [60, 120, 180].includes(perfil.intervaloMin) ? perfil.intervaloMin : 60;
-  const desdeInicio = agora.min - paraMin(perfil.inicio || "08:00");
   // o cron roda de hora em hora; avisa quando passou um múltiplo do intervalo
   return Math.floor(desdeInicio / 60) % (intervalo / 60) === 0;
 }

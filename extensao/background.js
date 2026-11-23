@@ -35,7 +35,11 @@ async function talvezLembrar() {
   const p = dados.perfil;
   const agora = new Date();
   const min = agora.getHours() * 60 + agora.getMinutes();
-  if (min < paraMin(p.inicio) || min > paraMin(p.fim)) return;
+  const ini = paraMin(p.inicio);
+  let fim = paraMin(p.fim);
+  if (fim <= ini) fim += 1440; // passa da meia-noite
+  const m = min < ini ? min + 1440 : min;
+  if (m < ini || m > fim) return;
   const intervalo = [60, 120, 180].includes(p.intervaloMin) ? p.intervaloMin : 60;
   if (Date.now() - ultimoLembrete < (intervalo - 5) * 60000) return;
   const hoje = dados.semana.find((d) => d.k === chaveDia()).eu;
