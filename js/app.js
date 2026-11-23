@@ -611,7 +611,8 @@ $app.addEventListener("click", async (ev) => {
       const link = linkConvite(cod);
       const texto = `Bora beber água comigo no Gotinhas? 💧 Toca no link pra entrar na minha dupla (no iPhone, abre no Safari):`;
       try {
-        if (navigator.share) await navigator.share({ title: "Gotinhas", text: texto, url: link });
+        const celular = /android|iphone|ipad|ipod/i.test(navigator.userAgent);
+        if (celular && navigator.share) await navigator.share({ title: "Gotinhas", text: texto, url: link });
         else { await navigator.clipboard.writeText(`${texto}\n${link}`); alert("Convite copiado! É só colar no WhatsApp."); }
       } catch {}
       break;
