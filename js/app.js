@@ -20,6 +20,11 @@ const S = {
   cfgMsg: "",
   pendente: false,
   meuCodigo: null,
+  historico: {},     // todos os dias (para conquistas)
+  cutucadasTotal: 0,
+  cutucadaMsg: "",
+  pushMsg: "",
+  extStatus: "",
   convite: lerConvite(),
 };
 
@@ -133,6 +138,7 @@ function aoMudarPerfil(p) {
             garantirMeses();
           }
           render();
+          aoEntrarNaRota();
         })
       );
       if (!p.codigo) {
@@ -173,13 +179,14 @@ const ICONES = {
   calendario: '<svg aria-hidden="true" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><rect x="4" y="6" width="16" height="14"/><path d="M4 10 H20 M8 3 V7 M16 3 V7"/></svg>',
   config: '<svg aria-hidden="true" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M4 7 H20 M4 12 H20 M4 17 H20"/><rect x="7" y="5" width="4" height="4" fill="#fff"/><rect x="14" y="10" width="4" height="4" fill="#fff"/><rect x="9" y="15" width="4" height="4" fill="#fff"/></svg>',
   lapis: '<svg aria-hidden="true" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><path d="M4 20 L4 16 L16 4 L20 8 L8 20 Z"/></svg>',
+  estrela: '<svg aria-hidden="true" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linejoin="miter"><path d="M12 3 L14.5 9 L21 9.5 L16 13.5 L17.5 20 L12 16.5 L6.5 20 L8 13.5 L3 9.5 L9.5 9 Z"/></svg>',
   lixo: '<svg aria-hidden="true" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M4 7 H20 M9 7 V4 H15 V7 M6 7 L7 20 H17 L18 7 M10 11 V16 M14 11 V16"/></svg>',
 };
 
 function nav(ativo) {
   const item = (id, href, txt) =>
     `<a href="${href}" class="${ativo === id ? "ativo" : ""}" ${ativo === id ? 'aria-current="page"' : ""}>${ICONES[id]}<span>${txt}</span></a>`;
-  return `<nav class="barra-nav" aria-label="Navegação principal">${item("hoje", "#/hoje", "Hoje")}${item("calendario", "#/calendario", "Calendário")}${item("config", "#/config", "Config")}</nav>`;
+  return `<nav class="barra-nav" aria-label="Navegação principal">${item("hoje", "#/hoje", "Hoje")}${item("calendario", "#/calendario", "Calendário")}${item("estrela", "#/conquistas", "Conquistas")}${item("config", "#/config", "Config")}</nav>`;
 }
 
 function cartaoPessoa(uid, key = S.hoje) {
@@ -337,6 +344,7 @@ function telaHoje() {
       <button class="btn" data-acao="add" data-ml="500">+500 ml</button>
       <button class="btn" data-acao="outro">+ outro</button>
     </div>
+    ${botaoCutucar()}
     <section style="display:flex;flex-direction:column;gap:6px">
       <div class="linha entre">
         <h2>Registros de hoje</h2>
@@ -501,6 +509,7 @@ function telaConfig() {
       </div>
       ${pd ? "" : `<button class="btn rosa" data-acao="compartilhar" style="min-height:40px;font-size:10px">Enviar convite</button>`}
     </section>
+    ${secaoNotificacoes()}
     ${S.store.modo === "demo" ? `<div class="aviso">Modo demo. Para usar de verdade, configure o Firebase (veja o README).</div>` : ""}
     <button class="btn perigo" data-acao="sair">Sair da conta</button>
   </div>${nav("config")}`;
@@ -526,6 +535,186 @@ function folhaOutro() {
   </div>`;
 }
 
+// ------------------------------------------------------------------ fase 2: cutucada e notificações
+function erroCutucada(e) {
+  const nome = esc(perfilDe(S.ela).nome || "Ela");
+  return ({
+    espera: `Calma! Próxima cutucada em ${e.faltaMin || 30} min.`,
+    "limite-dia": "Já foram 5 cutucadas hoje. Amanhã tem mais 😉",
+    "fora-do-horario": `${nome} está fora do horário de lembretes.`,
+    "ela-ja-bateu": `${nome} já bateu a meta hoje ♥`,
+    "ela-sem-notificacao": `${nome} ainda não ativou as notificações (Config → Notificações).`,
+    "ela-desligou": `${nome} desligou as cutucadas.`,
+    "sem-worker": "A cutucada ainda não foi configurada (veja o README).",
+  })[e.message] || "Não deu pra cutucar agora.";
+}
+
+function botaoCutucar() {
+  if (!S.ela) return "";
+  const ate = Number(localStorage.getItem("gotinhas-cutucada-ate") || 0);
+  const falta = Math.ceil((ate - Date.now()) / 60000);
+  const nome = esc(perfilDe(S.ela).nome || "ela");
+  if (S.cutucadaMsg) return `<div class="status ${S.cutucadaMsg.includes("✓") ? "feito" : ""}" role="status">${S.cutucadaMsg}</div>`;
+  if (falta > 0) return `<button class="btn texto tracejado" disabled>Cutucada enviada · próxima em ${falta} min</button>`;
+  return `<button class="btn texto rosa" data-acao="cutucar">Cutucar ${nome} 💧</button>`;
+}
+
+function secaoNotificacoes() {
+  const p = S.perfil;
+  const disp = S.store.pushDisponivel?.();
+  const ativo = S.store.pushAtivoNesteAparelho?.();
+  const ios = /iphone|ipad|ipod/i.test(navigator.userAgent);
+  const instalado = navigator.standalone || matchMedia("(display-mode: standalone)").matches;
+  let corpo;
+  if (!disp) corpo = `<p class="sub" style="font-size:15px">Ainda não configurado. Siga a fase 2 do README (Cloudflare + chave do Firebase).</p>`;
+  else if (ios && !instalado) corpo = `<p style="font-size:15px">No iPhone, as notificações só funcionam com o app instalado: Safari → Compartilhar → <b>Adicionar à Tela de Início</b>, e abra pelo ícone.</p>`;
+  else corpo = ativo
+    ? `<button class="btn" data-acao="push-desativar">Desligar lembretes</button>`
+    : `<button class="btn prim" data-acao="push-ativar">🔔 Ativar notificações</button>`;
+  return `<section class="caixa sombra" style="display:flex;flex-direction:column;gap:12px">
+    <h2>Notificações</h2>
+    ${corpo}
+    <label class="campo">Lembrar a cada
+      <select id="cfg-intervalo" class="pix" style="font-family:var(--corpo);font-size:17px">
+        ${[60, 120, 180].map((m) => `<option value="${m}" ${(p.intervaloMin || 60) === m ? "selected" : ""}>${m / 60} hora${m > 60 ? "s" : ""}</option>`).join("")}
+      </select>
+    </label>
+    <label class="linha" style="min-height:44px;font-size:17px"><span class="cresce">Receber cutucadas</span><input type="checkbox" id="cfg-cutucadas" ${p.cutucadas === false ? "" : "checked"} style="width:22px;height:22px;accent-color:var(--azul-esc)"></label>
+    <p class="sub" style="font-size:14px">Os lembretes só chegam dentro do seu horário e param quando você bate a meta. Cutucadas: no máximo 1 a cada 30 min e 5 por dia.</p>
+    <p role="status" style="font-size:15px;min-height:1em">${esc(S.pushMsg)}</p>
+  </section>`;
+}
+
+// ------------------------------------------------------------------ fase 3: conectar extensão
+function telaConectarExtensao() {
+  const st = S.extStatus;
+  const msg = {
+    conectando: ["Conectando…", "normal"],
+    ok: ["Extensão conectada! Pode fechar esta aba.", "feliz"],
+    "sem-extensao": ["Não encontrei a extensão. Abra esta página pelo botão “Conectar” da extensão.", "triste"],
+    "sem-worker": ["A conexão da extensão precisa do Worker configurado (fase 2 do README).", "triste"],
+    erro: ["Não deu pra conectar. Tente de novo.", "triste"],
+  }[st] || ["Conectando…", "normal"];
+  return `<div class="tela"><div class="centro">
+    ${gotaSVG(S.perfil.cor, msg[1], 9)}
+    <h1>Extensão do Chrome</h1>
+    <p>${msg[0]}</p>
+    <a class="btn prim" href="#/hoje">Ir para o app</a>
+  </div></div>`;
+}
+
+// ------------------------------------------------------------------ fase 4: conquistas e resumo
+function todosDias(uid) { return { ...(S.historico[uid] || {}), ...(S.dias[uid] || {}) }; }
+function bateuDoc(doc, metaPadrao) { const d = normalizarDia(doc, metaPadrao); return d.registros.length > 0 && d.totalMl >= d.metaMl; }
+function maiorSequenciaJuntos(a, b, metaA, metaB) {
+  const chaves = Object.keys(a).filter((k) => bateuDoc(a[k], metaA) && bateuDoc(b[k], metaB)).sort();
+  let melhor = 0, atual = 0, ant = null;
+  for (const k of chaves) {
+    const d = dataDe(k);
+    atual = ant && (d - ant) / 86400000 === 1 ? atual + 1 : 1;
+    melhor = Math.max(melhor, atual);
+    ant = d;
+  }
+  return melhor;
+}
+
+function calcularConquistas() {
+  const eu = S.user.uid, metaEu = S.perfil.metaMl;
+  const a = todosDias(eu);
+  const b = S.ela ? todosDias(S.ela) : {};
+  const metaEla = perfilDe(S.ela).metaMl;
+  const docs = Object.values(a).map((d) => normalizarDia(d, metaEu));
+  const algumCopo = docs.some((d) => d.registros.length > 0);
+  const algumaMeta = docs.some((d) => d.registros.length > 0 && d.totalMl >= d.metaMl);
+  const juntos = Object.keys(a).some((k) => bateuDoc(a[k], metaEu) && bateuDoc(b[k], metaEla));
+  const cedo = docs.some((d) => d.registros.some((r) => r.h < "08:00"));
+  const seq = maiorSequenciaJuntos(a, b, metaEu, metaEla);
+  const maior = Math.max(0, ...docs.map((d) => d.totalMl));
+  const cut = S.cutucadasTotal;
+  return [
+    { t: "Primeiro gole", d: "Registrou o primeiro copo", p: algumCopo ? 1 : 0 },
+    { t: "Meta batida", d: "Fechou a meta de um dia", p: algumaMeta ? 1 : 0 },
+    { t: "Dupla ♥", d: "Os dois bateram no mesmo dia", p: juntos ? 1 : 0 },
+    { t: "Madrugador", d: "Um copo antes das 8h", p: cedo ? 1 : 0 },
+    { t: "Cutucador", d: `Cutucou 10 vezes (${Math.min(cut, 10)}/10)`, p: Math.min(1, cut / 10) },
+    { t: "7 dias juntos", d: `Uma semana de ♥ seguida (${Math.min(seq, 7)}/7)`, p: Math.min(1, seq / 7) },
+    { t: "Maratona", d: `3 L num dia só (${litros(Math.min(maior, 3000))}/3,0 L)`, p: Math.min(1, maior / 3000) },
+    { t: "Mês perfeito", d: `30 dias de ♥ seguidos (${Math.min(seq, 30)}/30)`, p: Math.min(1, seq / 30) },
+  ];
+}
+
+function telaConquistas() {
+  const lista = calcularConquistas();
+  const feitas = lista.filter((c) => c.p >= 1).length;
+  return `<div class="tela com-nav">
+    <div class="linha entre"><h1>Conquistas</h1><span class="sub">${feitas} de ${lista.length}</span></div>
+    <a class="btn prim" href="#/resumo" style="justify-content:space-between;min-height:64px">
+      <span style="display:flex;flex-direction:column;gap:4px;text-align:left"><span>Resumo da semana</span><span style="font-family:var(--corpo);font-size:15px">quem bebeu mais nos últimos 7 dias?</span></span><span>›</span>
+    </a>
+    <div class="grade2">
+      ${lista.map((c) => {
+        const ok = c.p >= 1;
+        return `<div class="conquista ${ok ? "" : "travada"}">
+          <div class="linha" style="gap:8px"><span class="ic">${ICONES.estrela}</span><b>${esc(c.t)}</b></div>
+          <span class="sub" style="font-size:14px">${esc(c.d)}</span>
+          ${ok ? "" : `<div class="barra" style="height:8px;border-color:#7C95AE"><i style="width:${Math.round(c.p * 100)}%;background:#7C95AE"></i></div>`}
+        </div>`;
+      }).join("")}
+    </div>
+  </div>${nav("estrela")}`;
+}
+
+function telaResumo() {
+  const eu = S.user.uid;
+  const dias = [];
+  const d = dataDe(S.hoje);
+  for (let i = 6; i >= 0; i--) { const x = new Date(d); x.setDate(d.getDate() - i); dias.push(chaveDia(x)); }
+  const tot = (uid) => dias.reduce((acc, k) => { const v = diaDe(uid, k); acc.ml += v.totalMl; acc.meta += v.metaMl; return acc; }, { ml: 0, meta: 0 });
+  const A = tot(eu);
+  const B = S.ela ? tot(S.ela) : null;
+  const coracoes = dias.filter((k) => ambos(k)).length;
+  const pa = A.meta ? A.ml / A.meta : 0, pb = B && B.meta ? B.ml / B.meta : 0;
+  const nomeEla = esc(perfilDe(S.ela).nome || "Ela");
+  let campeao = "", corCamp = S.perfil.cor;
+  if (B) {
+    if (Math.abs(pa - pb) < 0.01) campeao = "Empate! ♥";
+    else if (pa > pb) campeao = `${esc(S.perfil.nome || "Você")}`;
+    else { campeao = nomeEla; corCamp = perfilDe(S.ela).cor; }
+  }
+  const max = Math.max(2500, ...dias.map((k) => Math.max(diaDe(eu, k).totalMl, B ? diaDe(S.ela, k).totalMl : 0)));
+  const nomeDia = (k) => maiuscula(dataDe(k).toLocaleDateString("pt-BR", { weekday: "short" }).replace(".", "")) + " " + k.slice(8);
+  return `<div class="tela com-nav">
+    <a class="voltar" href="#/conquistas">‹ Conquistas</a>
+    <h1>Últimos 7 dias</h1>
+    ${B ? `<section class="caixa sombra linha" style="gap:16px">
+      <div style="display:flex;flex-direction:column;align-items:center;gap:2px">
+        <svg aria-hidden="true" width="40" height="20" viewBox="0 0 8 4" shape-rendering="crispEdges"><path fill="#C99A06" d="M0 0h1v4H0zM3 0h2v4H3zM7 0h1v4H7zM0 2h8v2H0z"/></svg>
+        ${gotaSVG(corCamp, "feliz", 7)}
+      </div>
+      <div style="display:flex;flex-direction:column;gap:6px">
+        <span class="sub" style="font-size:15px">${campeao.includes("Empate") ? "Resultado" : "Campeão(ã) da semana"}</span>
+        <span style="font-family:var(--pixel);font-size:13px">${campeao}</span>
+        <span style="font-size:15px">pela % da meta cumprida</span>
+      </div>
+    </section>` : ""}
+    <div class="grade3">
+      <div class="caixa azul stat"><span style="color:#0F4C9E">Você</span><b>${litros(A.ml)} L</b><span class="sub">${Math.round(pa * 100)}% da meta</span></div>
+      ${B ? `<div class="caixa rosa stat"><span>${nomeEla}</span><b>${litros(B.ml)} L</b><span>${Math.round(pb * 100)}% da meta</span></div>` : "<div></div>"}
+      <div class="caixa stat"><span class="sub">Dias com ♥</span><b>${coracoes} de 7</b></div>
+    </div>
+    <section class="caixa" style="display:flex;flex-direction:column;gap:8px">
+      ${dias.map((k) => `<div style="display:grid;grid-template-columns:64px minmax(0,1fr) 16px;align-items:center;gap:8px">
+        <span style="font-size:15px">${esc(nomeDia(k))}</span>
+        <span style="display:flex;flex-direction:column;gap:3px">
+          <i style="display:block;height:9px;width:${Math.round((diaDe(eu, k).totalMl / max) * 100)}%;background:var(--azul)"></i>
+          ${B ? `<i style="display:block;height:9px;width:${Math.round((diaDe(S.ela, k).totalMl / max) * 100)}%;background:var(--rosa)"></i>` : ""}
+        </span>
+        <span>${ambos(k) ? CORACAO_SVG("#D9467A", 14) : ""}</span>
+      </div>`).join("")}
+    </section>
+  </div>${nav("estrela")}`;
+}
+
 // ------------------------------------------------------------------ render
 function digitando() {
   const a = document.activeElement;
@@ -549,6 +738,9 @@ function render(forcar = false) {
     else if (r.nome === "dia") html = telaDia(r.arg);
     else if (r.nome === "editar") html = telaEditar(r.arg || S.hoje);
     else if (r.nome === "config") html = telaConfig();
+    else if (r.nome === "conquistas") html = telaConquistas();
+    else if (r.nome === "resumo") html = telaResumo();
+    else if (r.nome === "conectar-extensao") html = telaConectarExtensao();
     else html = telaHoje();
     html += folhaOutro();
   }
@@ -663,6 +855,39 @@ $app.addEventListener("click", async (ev) => {
     case "zerar":
       if (confirm("Apagar todos os registros desse dia?")) await mudarRegistros(el.dataset.key, () => []);
       break;
+    case "cutucar": {
+      const ate = Number(localStorage.getItem("gotinhas-cutucada-ate") || 0);
+      if (Date.now() < ate) break;
+      el.disabled = true;
+      try {
+        const r = await S.store.cutucar();
+        localStorage.setItem("gotinhas-cutucada-ate", String(Date.now() + (r.proximaEmMin || 30) * 60000));
+        S.cutucadaMsg = "Cutucada enviada ✓";
+      } catch (e) {
+        S.cutucadaMsg = erroCutucada(e);
+        if (e.faltaMin) localStorage.setItem("gotinhas-cutucada-ate", String(Date.now() + e.faltaMin * 60000));
+      }
+      render(true);
+      setTimeout(() => { S.cutucadaMsg = ""; render(); }, 6000);
+      break;
+    }
+    case "push-ativar":
+      S.pushMsg = "";
+      try {
+        await S.store.ativarPush(S.user.uid);
+        await S.store.salvarPerfil(S.user.uid, { lembretes: true });
+        S.pushMsg = "Notificações ativadas neste aparelho ✓";
+      } catch (e) {
+        S.pushMsg = ({ negado: "Você recusou a permissão. Libere nas configurações do aparelho.", "nao-suportado": "Este navegador não recebe notificações. No iPhone, abra pelo ícone da tela inicial.", "sem-vapid": "Notificações ainda não configuradas (veja o README)." })[e.message] || "Não deu pra ativar. Tente de novo.";
+      }
+      render(true);
+      break;
+    case "push-desativar":
+      await S.store.desativarPush(S.user.uid);
+      await S.store.salvarPerfil(S.user.uid, { lembretes: false });
+      S.pushMsg = "Lembretes desligados.";
+      render(true);
+      break;
     case "mes": {
       const n = Number(el.dataset.n);
       const novo = ymSomar(S.mesVisto, n);
@@ -677,6 +902,8 @@ $app.addEventListener("click", async (ev) => {
 
 $app.addEventListener("change", async (ev) => {
   const el = ev.target;
+  if (el.id === "cfg-intervalo") { await S.store.salvarPerfil(S.user.uid, { intervaloMin: Number(el.value) }); return; }
+  if (el.id === "cfg-cutucadas") { await S.store.salvarPerfil(S.user.uid, { cutucadas: el.checked }); return; }
   if (el.dataset.acao === "hora") {
     const id = el.closest(".edit-linha").dataset.id;
     const h = el.value;
@@ -737,7 +964,33 @@ function erroLogin(e) {
   return "Não deu pra entrar. Tente de novo.";
 }
 
-window.addEventListener("hashchange", () => { S.folha = null; render(true); window.scrollTo(0, 0); });
+window.addEventListener("hashchange", () => { S.folha = null; aoEntrarNaRota(); render(true); window.scrollTo(0, 0); });
+
+async function aoEntrarNaRota() {
+  if (!S.user || !S.perfil?.duplaId) return;
+  const r = rota();
+  if (r.nome === "conquistas" || r.nome === "resumo") {
+    for (const uid of [S.user.uid, S.ela]) {
+      if (!uid) continue;
+      S.store.buscarTodosDias(uid).then((m) => { S.historico[uid] = m; render(); }).catch(() => {});
+    }
+    S.store.contagemCutucadas(S.user.uid).then((n) => { S.cutucadasTotal = n; render(); }).catch(() => {});
+  }
+  if (r.nome === "conectar-extensao" && !S.extStatus) {
+    S.extStatus = "conectando";
+    try {
+      const token = await S.store.tokenExtensao();
+      let confirmou = false;
+      const ouvir = (ev) => { if (ev.data?.fonte === "gotinhas-ext" && ev.data?.tipo === "ok") { confirmou = true; S.extStatus = "ok"; render(); } };
+      window.addEventListener("message", ouvir);
+      window.postMessage({ fonte: "gotinhas-site", tipo: "token-extensao", token }, location.origin);
+      setTimeout(() => { window.removeEventListener("message", ouvir); if (!confirmou) { S.extStatus = "sem-extensao"; render(); } }, 4000);
+    } catch (e) {
+      S.extStatus = e.message === "sem-worker" ? "sem-worker" : "erro";
+    }
+    render();
+  }
+}
 
 // virada do dia e humor que muda com o horário
 setInterval(() => {

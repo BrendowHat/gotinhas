@@ -174,11 +174,11 @@ input[type=time].pix { font-family: var(--corpo); font-size: 17px; padding: 0 6p
 nav.barra-nav {
   position: fixed; left: 50%; bottom: 0; transform: translateX(-50%);
   width: 100%; max-width: 480px; z-index: 5;
-  display: grid; grid-template-columns: repeat(3, minmax(0, 1fr));
+  display: grid; grid-template-columns: repeat(4, minmax(0, 1fr));
   background: #fff; border-top: 3px solid var(--ink);
   padding-bottom: env(safe-area-inset-bottom);
 }
-nav.barra-nav a { min-height: 72px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 4px; font-size: 14px; color: var(--ink-2); text-decoration: none; }
+nav.barra-nav a { min-height: 72px; font-size: 13px !important; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 4px; font-size: 14px; color: var(--ink-2); text-decoration: none; }
 nav.barra-nav a.ativo { background: var(--azul-claro); color: #0F4C9E; font-weight: 600; }
 
 /* ---------- folha (bottom sheet) ---------- */
@@ -198,3 +198,10 @@ nav.barra-nav a.ativo { background: var(--azul-claro); color: #0F4C9E; font-weig
 .separador::before, .separador::after { content: ""; flex: 1; height: 3px; background: var(--azul-medio); }
 .modo-demo { position: relative; z-index: 2; background: #FFF6D6; color: #5C4300; text-align: center; font-size: 14px; padding: 4px; border-bottom: 2px solid #7A5A00; }
 .carregando { flex: 1; display: flex; align-items: center; justify-content: center; }
+
+/* ---------- conquistas ---------- */
+.conquista { background: #fff; border: 3px solid var(--ink); padding: 10px; display: flex; flex-direction: column; gap: 6px; min-height: 104px; }
+.conquista b { font-size: 16px; font-weight: 600; line-height: 1.2; }
+.conquista .ic { color: #C99A06; flex-shrink: 0; }
+.conquista.travada { background: #E3EBF3; border-style: dashed; border-color: #7C95AE; }
+.conquista.travada .ic { color: #7C95AE; }

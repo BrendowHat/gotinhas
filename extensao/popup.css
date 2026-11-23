@@ -1,0 +1,38 @@
+* { box-sizing: border-box; }
+body { width: 340px; margin: 0; background: #EAF5FF; color: #12324F; font-family: 'Pixelify Sans', system-ui, sans-serif; font-size: 16px; }
+main { padding: 14px; display: flex; flex-direction: column; gap: 12px; }
+h1 { margin: 0; font-family: 'Press Start 2P', monospace; font-size: 12px; font-weight: 400; }
+p { margin: 0; line-height: 1.35; }
+.sub { color: #3A5A78; }
+.linha { display: flex; align-items: center; gap: 10px; }
+.entre { justify-content: space-between; }
+.cresce { flex: 1; }
+.caixa { background: #fff; border: 3px solid #12324F; padding: 12px; }
+.sombra { box-shadow: 4px 4px 0 #12324F; }
+.rosa { background: #FCE3EC; border-color: #9C2F5A; color: #7A1F45; }
+.chip { font-size: 13px; padding: 2px 8px; border: 2px solid currentColor; }
+.chip.ok { color: #1E6B35; background: #E1F4E6; }
+.chip.offline { color: #5C4300; background: #FFF6D6; }
+.copo { width: 72px; height: 100px; flex-shrink: 0; border: 3px solid #12324F; border-top: none; background: #fff; position: relative; }
+.copo .agua { position: absolute; left: 0; right: 0; bottom: 0; background: #9CCBF5; border-top: 3px solid #2F80ED; transition: height .6s steps(6); }
+.copo .agua.cheia { background: #A5D6A7; border-top-color: #2E7D32; }
+.copo span { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; font-family: 'Press Start 2P', monospace; font-size: 11px; }
+.ml { font-family: 'Press Start 2P', monospace; font-size: 11px; line-height: 1.6; }
+.grade3 { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; }
+.btn { min-height: 44px; border: 3px solid #12324F; border-radius: 0; background: #fff; color: #12324F; font-family: 'Press Start 2P', monospace; font-size: 10px; cursor: pointer; }
+.btn.prim { background: #1B5FBF; color: #fff; box-shadow: 3px 3px 0 #12324F; }
+.btn:active { transform: translate(2px, 2px); box-shadow: none; }
+.btn:disabled { opacity: .55; cursor: default; }
+.outro { display: flex; gap: 8px; }
+.outro input { flex: 1; min-height: 44px; border: 3px solid #12324F; border-radius: 0; padding: 0 10px; font-family: 'Press Start 2P', monospace; font-size: 11px; background: #F7FBFF; }
+.semana { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 4px; }
+.semana div { height: 46px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px; font-size: 13px; background: #fff; border: 2px solid #9CCBF5; }
+.semana div.hoje { border: 3px solid #12324F; }
+.semana div.ambos { background: #FFF0F5; }
+.rodape { display: flex; justify-content: space-between; align-items: center; font-size: 14px; }
+.rodape a, .rodape button { color: #1B5FBF; background: none; border: none; font: inherit; cursor: pointer; padding: 6px 0; text-decoration: underline; }
+.toggle { display: flex; align-items: center; gap: 8px; font-size: 14px; }
+.toggle input { width: 18px; height: 18px; accent-color: #1B5FBF; }
+.carregando { text-align: center; padding: 30px 0; }
+.erro { color: #9B1C1C; font-size: 14px; }
+.outro[hidden] { display: none; }

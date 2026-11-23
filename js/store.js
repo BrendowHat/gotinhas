@@ -1,5 +1,8 @@
 // Camada de dados. Mesma interface para o Firebase e para o modo demo (localStorage).
-import { firebaseConfig } from "./firebase-config.js";
+import * as CFG from "./firebase-config.js";
+const firebaseConfig = CFG.firebaseConfig;
+const VAPID = CFG.vapidKey || "";
+const WORKER = (CFG.workerUrl || "").replace(/\/$/, "");
 
 export const PERFIL_PADRAO = {
   nome: "",
@@ -10,6 +13,9 @@ export const PERFIL_PADRAO = {
   fim: "17:48",
   duplaId: null,
   codigo: null,
+  lembretes: false,
+  cutucadas: true,
+  intervaloMin: 60,
 };
 
 const ALFABETO = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789"; // sem 0/O, 1/I
@@ -121,6 +127,48 @@ async function criarFirebase(cfg) {
         () => cb({})
       );
     },
+    async buscarTodosDias(uid) {
+      const snap = await F.getDocs(F.collection(db, "users", uid, "dias"));
+      const mapa = {};
+      snap.forEach((d) => (mapa[d.id] = d.data()));
+      return mapa;
+    },
+    async contagemCutucadas(uid) {
+      try { const s = await F.getDoc(F.doc(db, "cutucadas", uid)); return s.exists() ? s.data().total || 0 : 0; } catch { return 0; }
+    },
+
+    // ---- notificações (push)
+    pushDisponivel: () => !!(VAPID && WORKER),
+    async ativarPush(uid) {
+      if (!VAPID) throw new Error("sem-vapid");
+      const M = await import(`${base}/firebase-messaging.js`);
+      if (!(await M.isSupported())) throw new Error("nao-suportado");
+      const perm = await Notification.requestPermission();
+      if (perm !== "granted") throw new Error("negado");
+      const reg = await navigator.serviceWorker.ready;
+      const token = await M.getToken(M.getMessaging(app), { vapidKey: VAPID, serviceWorkerRegistration: reg });
+      if (!token) throw new Error("sem-token");
+      await F.setDoc(F.doc(db, "users", uid, "tokens", token), { criadoEm: F.serverTimestamp(), ua: navigator.userAgent.slice(0, 120) });
+      try { localStorage.setItem("gotinhas-push-token", token); } catch {}
+      return token;
+    },
+    async desativarPush(uid) {
+      const token = localStorage.getItem("gotinhas-push-token");
+      if (token) await F.deleteDoc(F.doc(db, "users", uid, "tokens", token)).catch(() => {});
+      localStorage.removeItem("gotinhas-push-token");
+    },
+    pushAtivoNesteAparelho: () => !!localStorage.getItem("gotinhas-push-token") && typeof Notification !== "undefined" && Notification.permission === "granted",
+    async chamarWorker(caminho) {
+      if (!WORKER) throw new Error("sem-worker");
+      const idToken = await auth.currentUser.getIdToken();
+      const r = await fetch(`${WORKER}${caminho}`, { method: "POST", headers: { Authorization: `Bearer ${idToken}` } });
+      const d = await r.json().catch(() => ({}));
+      if (!r.ok) { const e = new Error(d.erro || "erro"); Object.assign(e, d); throw e; }
+      return d;
+    },
+    cutucar() { return this.chamarWorker("/cutucar"); },
+    async tokenExtensao() { return (await this.chamarWorker("/ext-token")).token; },
+
     salvarDia: (uid, key, dados) =>
       F.setDoc(F.doc(db, "users", uid, "dias", key), { ...dados, atualizadoEm: F.serverTimestamp() }),
   };
@@ -221,6 +269,20 @@ function criarDemo() {
         for (const [k, v] of Object.entries(db.dias[uid] || {})) if (k.startsWith(ym)) mapa[k] = v;
         cb(mapa);
       }),
+    async buscarTodosDias(uid) { return { ...(db.dias[uid] || {}) }; },
+    async contagemCutucadas() { return db.cutucadasTotal || 0; },
+    pushDisponivel: () => true,
+    async ativarPush() { localStorage.setItem("gotinhas-push-token", "demo"); return "demo"; },
+    async desativarPush() { localStorage.removeItem("gotinhas-push-token"); },
+    pushAtivoNesteAparelho: () => !!localStorage.getItem("gotinhas-push-token"),
+    async cutucar() {
+      const ultima = db.ultimaCutucada || 0;
+      const passou = (Date.now() - ultima) / 60000;
+      if (passou < 30) { const e = new Error("espera"); e.faltaMin = Math.ceil(30 - passou); throw e; }
+      db.ultimaCutucada = Date.now(); db.cutucadasTotal = (db.cutucadasTotal || 0) + 1; gravar();
+      return { ok: true, proximaEmMin: 30 };
+    },
+    async tokenExtensao() { return "demo-token"; },
     async salvarDia(uid, key, dados) {
       db.dias[uid] = db.dias[uid] || {};
       db.dias[uid][key] = dados;

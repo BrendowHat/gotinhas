@@ -7,3 +7,9 @@ export const firebaseConfig = {
   messagingSenderId: "881824784295",
   appId: "1:881824784295:web:7bf3e547a26e814c956082",
 };
+
+// Fase 2 (notificações). Deixe vazio até configurar:
+// vapidKey  → Firebase → Configurações do projeto → Cloud Messaging → Certificados push da Web → "Par de chaves"
+// workerUrl → endereço do Worker no Cloudflare, ex.: https://gotinhas.SEU-USUARIO.workers.dev
+export const vapidKey = "";
+export const workerUrl = "";

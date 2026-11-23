@@ -16,9 +16,14 @@ service cloud.firestore {
     match /users/{uid} {
       allow read: if podeVer(uid);
       allow write: if logado() && eu() == uid
-        && request.resource.data.keys().hasOnly(['nome','cor','metaMl','copoMl','inicio','fim','duplaId','codigo'])
+        && request.resource.data.keys().hasOnly(['nome','cor','metaMl','copoMl','inicio','fim','duplaId','codigo','lembretes','cutucadas','intervaloMin'])
         && (!('metaMl' in request.resource.data) || (request.resource.data.metaMl is int && request.resource.data.metaMl >= 100 && request.resource.data.metaMl <= 10000))
         && (!('nome' in request.resource.data) || (request.resource.data.nome is string && request.resource.data.nome.size() <= 30));
+
+      // Aparelhos que recebem notificação (só o dono)
+      match /tokens/{token} {
+        allow read, write: if logado() && eu() == uid;
+      }
 
       // Um documento por dia: users/{uid}/dias/AAAA-MM-DD
       match /dias/{dia} {
@@ -31,6 +36,12 @@ service cloud.firestore {
           && request.resource.data.totalMl >= 0
           && request.resource.data.totalMl <= 20000;
       }
+    }
+
+    // Controle anti-spam das cutucadas: só o Worker escreve; o dono pode ler
+    match /cutucadas/{uid} {
+      allow read: if logado() && eu() == uid;
+      allow write: if false;
     }
 
     // Dupla: no máximo 2 pessoas

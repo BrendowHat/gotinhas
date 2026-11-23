@@ -92,8 +92,74 @@ Depois de mudar qualquer arquivo, aumente a versão em `sw.js` (`gotinhas-v1` �
 | Tristinha | Mais de 15% atrás do esperado pra hora (a janela início–fim define o esperado) |
 | Com sede | Abaixo de 30% depois que 20% da janela já passou |
 
-## Próximas fases
+## Fase 2: notificações (lembretes + cutucada), grátis
 
-- Lembretes e cutucada por push (Cloudflare Worker grátis + FCM)
-- Extensão nova do Chrome, com importação do histórico atual
-- Conquistas e resumo semanal
+As notificações saem de um **Cloudflare Worker** (plano grátis, sem cartão), que fica entre o site e o Firebase.
+Código: `worker/worker.js`.
+
+### A. No Firebase
+1. **Chave do push**:
+   - Vá em ⚙️ Configurações do projeto → **Cloud Messaging** → **Certificados push da Web** → **Gerar par de chaves**.
+   - Copie a chave e cole em `vapidKey` no `js/firebase-config.js`.
+2. **Conta de serviço** (é o que deixa o Worker mandar notificações):
+   - Vá em ⚙️ Configurações do projeto → **Contas de serviço** → **Gerar nova chave privada**. Isso baixa um arquivo `.json`.
+   - ⚠️ Esse arquivo é **secreto**. Não suba no GitHub e não mande em chat; ele vai só no Cloudflare (passo B.3).
+
+### B. No Cloudflare
+1. Crie uma conta grátis em <https://dash.cloudflare.com/sign-up>.
+2. Crie o Worker:
+   - Vá em **Workers e Pages** → **Criar** → **Worker**, dê o nome `gotinhas` e clique em **Implantar**.
+   - Clique em **Editar código**, apague o exemplo, cole todo o `worker/worker.js` e clique em **Implantar**.
+3. No Worker, vá em **Configurações → Variáveis e segredos** e adicione:
+
+   | Nome | Tipo | Valor |
+   |---|---|---|
+   | `FIREBASE_SA` | **Secret** | o conteúdo inteiro do `.json` baixado em A.2 |
+   | `API_KEY` | Texto | a `apiKey` do `firebase-config.js` |
+   | `SITE_ORIGIN` | Texto | `https://brendowhat.github.io` |
+
+4. Ainda em **Configurações**, vá em **Gatilhos** → **Adicionar** → **Cron**, escreva `0 * * * *` (de hora em hora) e salve.
+5. Copie o endereço do Worker (ex.: `https://gotinhas.SEU-USUARIO.workers.dev`) e cole em `workerUrl` no `js/firebase-config.js`.
+
+### C. Ativar nos aparelhos
+- **iPhone:**
+  - Abra o app **pelo ícone da tela inicial**, vá em **Config → Notificações → Ativar notificações** e toque em **Permitir**.
+  - Pelo Safari normal não funciona.
+- **PC:** use os lembretes da extensão (fase 3). Não ative as notificações do site no Chrome do PC, senão chegam dois lembretes.
+
+### Como funciona
+- **Lembretes:**
+  - Chegam de hora em hora (ou a cada 2 ou 3 horas, conforme a Config), dentro do seu horário.
+  - Param quando você bate a meta.
+  - Se ela já tiver batido, a mensagem avisa 😉.
+- **Cutucada (anti-spam):**
+  - No máximo 1 a cada 30 min e 5 por dia.
+  - Só dentro do horário dela, e nunca se ela já bateu a meta.
+  - Ela pode desligar em Config.
+  - Quem controla isso é o Worker, então apertar o botão várias vezes não adianta.
+- **Custo zero:** sem cartão cadastrado, não existe cobrança. Se um limite estourar, o serviço só para até o dia seguinte.
+
+## Fase 3: extensão do Chrome
+
+A pasta `extensao/` é a extensão nova, conectada à mesma conta do site.
+
+**Para importar o histórico da extensão antiga "Meta de Água"**, substitua os arquivos **na mesma pasta** da antiga:
+1. Copie tudo de `extensao/` pra dentro da pasta onde está a extensão antiga, sobrescrevendo os arquivos.
+2. Abra `chrome://extensions` e clique em **↻ Recarregar** na extensão.
+
+Assim o Chrome mantém os dados antigos e a extensão nova consegue importá-los. Se for uma instalação nova, use **Carregar sem compactação** e escolha a pasta `extensao/`.
+
+**Pra conectar:**
+1. Abra o popup e clique em **Conectar com minha conta**.
+2. O site abre e mostra "Extensão conectada". Essa conexão usa o Worker da fase 2.
+3. No primeiro acesso, os dias da extensão antiga sobem pro Firebase. Só sobem os dias que ainda não existem lá; nada é sobrescrito.
+
+**O que a extensão tem:**
+- Popup com o copo enchendo e os botões +copo, +500 e +outro.
+- O progresso da sua dupla e os últimos 7 dias com ♥.
+- O ícone mostra a % e fica verde quando você bate a meta.
+- Lembretes no PC: seguem o seu horário e intervalo da Config e podem ser desligados no popup.
+
+## Fase 4: conquistas e resumo
+
+Já está no site, na aba **Conquistas**: 8 conquistas com barra de progresso, mais o **Resumo dos últimos 7 dias**. O campeão da semana é quem cumpriu a maior % da própria meta.

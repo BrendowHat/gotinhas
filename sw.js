@@ -1,6 +1,6 @@
 // Cache do "esqueleto" do app para abrir rápido e funcionar sem internet.
 // Ao publicar uma versão nova, aumente o número abaixo.
-const VERSAO = "gotinhas-v4";
+const VERSAO = "gotinhas-v5";
 const ARQUIVOS = [
   "./", "index.html", "css/style.css", "js/app.js", "js/store.js", "js/gota.js",
   "js/firebase-config.js", "manifest.webmanifest",
@@ -31,5 +31,34 @@ self.addEventListener("fetch", (e) => {
         return r;
       })
       .catch(() => caches.match(e.request, { ignoreSearch: true }).then((r) => r || caches.match("index.html")))
+  );
+});
+
+// ---------------------------------------------------------------- notificações (push)
+self.addEventListener("push", (e) => {
+  let p = {};
+  try { p = e.data ? e.data.json() : {}; } catch { p = { body: e.data && e.data.text() }; }
+  const d = p.data || p.notification || p;
+  const titulo = d.title || "Gotinhas";
+  e.waitUntil(
+    self.registration.showNotification(titulo, {
+      body: d.body || "Hora de beber água 💧",
+      icon: "icons/icon-192.png",
+      badge: "icons/icon-192.png",
+      tag: d.tag || "gotinhas",
+      renotify: true,
+      data: { url: d.url || "./" },
+    })
+  );
+});
+
+self.addEventListener("notificationclick", (e) => {
+  e.notification.close();
+  const alvo = new URL(e.notification.data?.url || "./", self.registration.scope).href;
+  e.waitUntil(
+    self.clients.matchAll({ type: "window", includeUncontrolled: true }).then((cs) => {
+      for (const c of cs) if (c.url.startsWith(self.registration.scope)) return c.focus();
+      return self.clients.openWindow(alvo);
+    })
   );
 });
