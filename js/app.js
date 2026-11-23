@@ -502,7 +502,7 @@ function telaConfig() {
       </div>
       <p class="sub" style="font-size:15px">O horário define quando a gotinha começa a ficar com sede. A meta nova vale a partir de hoje; dias passados não mudam.</p>
       <button class="btn prim" type="submit">Salvar</button>
-      <p role="status" style="font-size:15px;color:#1E6B35;min-height:1em">${esc(S.cfgMsg)}</p>
+      <p role="status" style="font-size:15px;color:${S.cfgMsg.includes("✓") ? "#1E6B35" : "var(--perigo)"};min-height:1em">${esc(S.cfgMsg)}</p>
     </form>
     <section class="caixa rosa linha">
       ${gotaSVG(pd?.cor || "rosa", "feliz", 4, "", pd?.acessorio)}
@@ -950,7 +950,10 @@ $app.addEventListener("submit", async (ev) => {
       const d = diaDe(S.user.uid, S.hoje);
       await S.store.salvarDia(S.user.uid, S.hoje, { metaMl: dados.metaMl, registros: d.registros, totalMl: d.totalMl });
       S.cfgMsg = "Salvo ✓";
-    } catch { S.cfgMsg = "Não deu pra salvar."; }
+    } catch (e) {
+      console.warn("config:", e);
+      S.cfgMsg = String(e?.code || "").includes("permission") ? "Não deu pra salvar: as regras do Firestore estão desatualizadas (publique o firestore.rules de novo)." : "Não deu pra salvar. Confira a internet.";
+    }
     document.activeElement?.blur();
     render(true);
     setTimeout(() => { S.cfgMsg = ""; render(); }, 2500);
