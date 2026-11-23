@@ -1,0 +1,60 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    function logado() { return request.auth != null; }
+    function eu() { return request.auth.uid; }
+    function duplaDe(uid) {
+      return get(/databases/$(database)/documents/users/$(uid)).data.get('duplaId', null);
+    }
+    // o dono, ou quem está na mesma dupla, pode ler
+    function podeVer(uid) {
+      return logado() && (eu() == uid || (duplaDe(uid) != null && duplaDe(uid) == duplaDe(eu())));
+    }
+
+    // Perfil de cada um
+    match /users/{uid} {
+      allow read: if podeVer(uid);
+      allow write: if logado() && eu() == uid
+        && request.resource.data.keys().hasOnly(['nome','cor','metaMl','copoMl','inicio','fim','duplaId'])
+        && (!('metaMl' in request.resource.data) || (request.resource.data.metaMl is int && request.resource.data.metaMl >= 100 && request.resource.data.metaMl <= 10000))
+        && (!('nome' in request.resource.data) || (request.resource.data.nome is string && request.resource.data.nome.size() <= 30));
+
+      // Um documento por dia: users/{uid}/dias/AAAA-MM-DD
+      match /dias/{dia} {
+        allow read: if podeVer(uid);
+        allow write: if logado() && eu() == uid
+          && dia.matches('^[0-9]{4}-[0-9]{2}-[0-9]{2}$')
+          && request.resource.data.registros is list
+          && request.resource.data.registros.size() <= 200
+          && request.resource.data.totalMl is int
+          && request.resource.data.totalMl >= 0
+          && request.resource.data.totalMl <= 20000;
+      }
+    }
+
+    // Dupla: no máximo 2 pessoas
+    match /duplas/{id} {
+      allow read: if logado() && eu() in resource.data.membros;
+      allow create: if logado() && request.resource.data.membros == [eu()];
+      // entrar na dupla: só pode adicionar a si mesmo, e só se ainda houver vaga
+      allow update: if logado()
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['membros'])
+        && resource.data.membros.size() < 2
+        && request.resource.data.membros.size() == resource.data.membros.size() + 1
+        && request.resource.data.membros.hasAll(resource.data.membros)
+        && eu() in request.resource.data.membros;
+    }
+
+    // Código de convite → duplaId (só dá pra buscar sabendo o código, não dá pra listar)
+    match /codigos/{codigo} {
+      allow get: if logado();
+      allow list: if false;
+      // criado junto com a dupla, pelo próprio criador
+      allow create: if logado()
+        && request.resource.data.dono == eu()
+        && getAfter(/databases/$(database)/documents/duplas/$(request.resource.data.duplaId)).data.membros == [eu()];
+      allow update, delete: if false;
+    }
+  }
+}
