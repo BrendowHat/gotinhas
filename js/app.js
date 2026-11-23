@@ -19,7 +19,21 @@ const S = {
   dplErro: "",
   cfgMsg: "",
   pendente: false,
+  meuCodigo: null,
+  convite: lerConvite(),
 };
+
+function lerConvite() {
+  const m = location.hash.match(/^#\/convite\/([A-Za-z0-9]{6})/);
+  if (m) {
+    try { localStorage.setItem("gotinhas-convite", m[1].toUpperCase()); } catch {}
+    history.replaceState(null, "", location.pathname);
+    return m[1].toUpperCase();
+  }
+  try { return localStorage.getItem("gotinhas-convite"); } catch { return null; }
+}
+const codigoAtual = () => S.dupla?.codigo || S.perfil?.codigo || S.meuCodigo || "";
+const linkConvite = (cod) => `${location.origin}${location.pathname}#/convite/${cod}`;
 
 const $app = document.getElementById("app");
 const $agua = document.getElementById("agua");
@@ -121,6 +135,9 @@ function aoMudarPerfil(p) {
           render();
         })
       );
+      if (!p.codigo) {
+        S.store.buscarMeuCodigo?.(S.user.uid).then((c) => { if (c) { S.meuCodigo = c; render(); } }).catch(() => {});
+      }
     }
   }
   garantirMeses();
@@ -181,12 +198,12 @@ function cartaoPessoa(uid, key = S.hoje) {
 }
 
 function cartaoEsperando() {
-  const cod = S.dupla?.codigo || "";
+  const cod = codigoAtual();
   return `<section class="caixa sombra pessoa" style="justify-content:center">
     ${gotaSVG("rosa", "normal", 5)}
     <span style="font-size:15px">Esperando sua dupla</span>
     <span class="nome" style="font-size:13px">${esc(cod)}</span>
-    <button class="btn" data-acao="compartilhar" style="min-height:40px;font-size:10px">Enviar código</button>
+    <button class="btn" data-acao="compartilhar" style="min-height:40px;font-size:10px">Enviar convite</button>
   </section>`;
 }
 
@@ -256,6 +273,12 @@ function telaDupla() {
     <label class="campo">Como você quer aparecer?
       <input class="pix" id="dpl-nome" maxlength="30" value="${esc(S.perfil.nome)}" style="font-family:var(--corpo);font-size:17px">
     </label>
+    ${S.convite ? `<section class="caixa rosa sombra" style="display:flex;flex-direction:column;gap:12px;box-shadow:4px 4px 0 var(--rosa-esc)">
+      <h2>Você recebeu um convite ♥</h2>
+      <p>Código <b>${esc(S.convite)}</b>. Toque abaixo pra entrar na dupla.</p>
+      <button class="btn prim" data-acao="dupla-entrar">Entrar na dupla</button>
+    </section>
+    <div class="separador">ou</div>` : ""}
     <section class="caixa sombra" style="display:flex;flex-direction:column;gap:12px">
       <h2>Criar dupla</h2>
       <p>Você recebe um código de 6 letras pra mandar pra ela.</p>
@@ -265,7 +288,7 @@ function telaDupla() {
     <section class="caixa sombra" style="display:flex;flex-direction:column;gap:12px">
       <h2>Entrar com código</h2>
       <label class="campo">Código que você recebeu
-        <input class="pix" id="dpl-codigo" maxlength="6" autocapitalize="characters" autocomplete="off" placeholder="GOTA42">
+        <input class="pix" id="dpl-codigo" maxlength="6" autocapitalize="characters" autocomplete="off" placeholder="GOTA42" value="${esc(S.convite || "")}">
       </label>
       <button class="btn prim" data-acao="dupla-entrar">Entrar na dupla</button>
     </section>
@@ -474,9 +497,9 @@ function telaConfig() {
       ${gotaSVG(pd?.cor || "rosa", "feliz", 4)}
       <div style="display:flex;flex-direction:column;gap:2px" class="cresce">
         <span>${pd ? `Dupla com ${esc(pd.nome)}` : "Esperando sua dupla entrar"}</span>
-        <span style="font-size:14px">código ${esc(S.dupla?.codigo || "")}</span>
+        <span style="font-size:14px">${codigoAtual() ? `código ${esc(codigoAtual())}` : ""}</span>
       </div>
-      ${pd ? "" : `<button class="btn rosa" data-acao="compartilhar" style="min-height:40px;font-size:10px">Enviar</button>`}
+      ${pd ? "" : `<button class="btn rosa" data-acao="compartilhar" style="min-height:40px;font-size:10px">Enviar convite</button>`}
     </section>
     ${S.store.modo === "demo" ? `<div class="aviso">Modo demo. Para usar de verdade, configure o Firebase (veja o README).</div>` : ""}
     <button class="btn perigo" data-acao="sair">Sair da conta</button>
@@ -568,11 +591,13 @@ $app.addEventListener("click", async (ev) => {
       break;
     case "dupla-entrar": {
       S.dplErro = "";
-      const cod = document.getElementById("dpl-codigo").value.trim().toUpperCase();
+      const cod = (document.getElementById("dpl-codigo")?.value || S.convite || "").trim().toUpperCase();
       if (cod.length < 6) { S.dplErro = "O código tem 6 letras."; render(true); break; }
       try {
         await salvarNomeDupla();
         await S.store.entrarDupla(S.user.uid, cod);
+        try { localStorage.removeItem("gotinhas-convite"); } catch {}
+        S.convite = null;
         location.hash = "#/hoje";
       } catch (e) {
         S.dplErro = e.message === "codigo-invalido" ? "Esse código não existe. Confere com ela?" : e.message === "dupla-cheia" ? "Essa dupla já tem duas pessoas." : "Não deu pra entrar. Tente de novo.";
@@ -581,11 +606,13 @@ $app.addEventListener("click", async (ev) => {
       break;
     }
     case "compartilhar": {
-      const cod = S.dupla?.codigo || "";
-      const texto = `Entra na minha dupla no Gotinhas! Código: ${cod}\n${location.origin}${location.pathname}`;
+      const cod = codigoAtual();
+      if (!cod) { alert("Não achei o código da dupla. Feche e abra o app de novo."); break; }
+      const link = linkConvite(cod);
+      const texto = `Bora beber água comigo no Gotinhas? 💧 Toca no link pra entrar na minha dupla (no iPhone, abre no Safari):`;
       try {
-        if (navigator.share) await navigator.share({ title: "Gotinhas", text: texto });
-        else { await navigator.clipboard.writeText(texto); alert("Código copiado!"); }
+        if (navigator.share) await navigator.share({ title: "Gotinhas", text: texto, url: link });
+        else { await navigator.clipboard.writeText(`${texto}\n${link}`); alert("Convite copiado! É só colar no WhatsApp."); }
       } catch {}
       break;
     }

@@ -9,6 +9,7 @@ export const PERFIL_PADRAO = {
   inicio: "08:00",
   fim: "17:48",
   duplaId: null,
+  codigo: null,
 };
 
 const ALFABETO = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789"; // sem 0/O, 1/I
@@ -74,7 +75,7 @@ async function criarFirebase(cfg) {
         const batch = F.writeBatch(db);
         batch.set(dRef, { membros: [uid], codigo, criadoEm: F.serverTimestamp() });
         batch.set(F.doc(db, "codigos", codigo), { duplaId: dRef.id, dono: uid });
-        batch.set(F.doc(db, "users", uid), { duplaId: dRef.id }, { merge: true });
+        batch.set(F.doc(db, "users", uid), { duplaId: dRef.id, codigo }, { merge: true });
         try {
           await batch.commit();
           return codigo;
@@ -94,7 +95,13 @@ async function criarFirebase(cfg) {
       }
       await F.setDoc(F.doc(db, "users", uid), { duplaId, cor: "rosa" }, { merge: true });
     },
-    ouvirDupla: (id, cb) => F.onSnapshot(F.doc(db, "duplas", id), (s) => cb(s.exists() ? { id, ...s.data() } : null), () => cb(null)),
+    ouvirDupla: (id, cb) =>
+      F.onSnapshot(F.doc(db, "duplas", id), (s) => cb(s.exists() ? { id, ...s.data() } : null), (e) => { console.warn("dupla:", e); cb(null); }),
+    async buscarMeuCodigo(uid) {
+      const q = F.query(F.collection(db, "codigos"), F.where("dono", "==", uid), F.limit(1));
+      const snap = await F.getDocs(q);
+      return snap.empty ? null : snap.docs[0].id;
+    },
     ouvirPerfilDela: (uid, cb) =>
       F.onSnapshot(F.doc(db, "users", uid), (s) => cb(s.exists() ? { ...PERFIL_PADRAO, ...s.data() } : null), () => cb(null)),
 
@@ -189,6 +196,7 @@ function criarDemo() {
       const codigo = gerarCodigo();
       db.duplas.demo = { id: "demo", codigo, membros: [uid] };
       db.perfis[uid].duplaId = "demo";
+      db.perfis[uid].codigo = codigo;
       gravar();
       // a "namorada demo" entra sozinha depois de 3 segundos
       setTimeout(() => {
