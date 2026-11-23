@@ -5,8 +5,36 @@
 const W = 20, H = 26;      // tela
 const OX = 2, OY = 5;      // onde a gota começa na tela
 
-// meia-largura de cada linha da gota (16 de largura, centro entre as colunas 7 e 8)
-const MEIA = [1, 1, 2, 2, 3, 3, 4, 5, 5, 6, 6, 7, 7, 8, 8, 8, 7, 7, 6, 4];
+// Formatos: meia-largura de cada linha (16 de largura, centro entre as colunas 7 e 8)
+// e, opcionalmente, um deslocamento lateral por linha (pra ponta curvada).
+export const FORMAS = {
+  classica: { nome: "Clássica", meia: [1, 1, 2, 2, 3, 3, 4, 5, 5, 6, 6, 7, 7, 8, 8, 8, 7, 7, 6, 4] },
+  gordinha: { nome: "Gordinha", meia: [1, 2, 3, 4, 5, 6, 7, 7, 8, 8, 8, 8, 8, 8, 7, 7, 6, 4] },
+  bolinha:  { nome: "Bolinha",  meia: [1, 2, 4, 5, 6, 7, 7, 8, 8, 8, 8, 8, 8, 7, 6, 4] },
+  mochi:    { nome: "Mochi",    meia: [1, 3, 5, 6, 7, 8, 8, 8, 8, 8, 8, 8, 8, 8, 7, 5] },
+  topete:   { nome: "Topete",   meia: [1, 1, 2, 3, 4, 5, 6, 7, 7, 8, 8, 8, 8, 8, 8, 7, 6, 4], desloc: [3, 2, 1, 1, 0, 0] },
+};
+let FORMA_PADRAO = "gordinha";
+export function definirFormaPadrao(f) { if (FORMAS[f]) FORMA_PADRAO = f; }
+
+const cacheForma = {};
+function forma(nome) {
+  if (cacheForma[nome]) return cacheForma[nome];
+  const F = FORMAS[nome] || FORMAS.classica;
+  const k = 20 - F.meia.length; // quanto mais baixa que a clássica
+  const set = new Set();
+  F.meia.forEach((m, r) => {
+    const d = (F.desloc && F.desloc[r]) || 0;
+    for (let x = 8 - m + d; x <= 7 + m + d; x++) set.add(`${x},${r + k}`);
+  });
+  // brilho: acompanha a borda de cima-esquerda
+  const brilho = [];
+  for (let r = 2; r < Math.min(7, F.meia.length); r++) {
+    const m = F.meia[r], d = (F.desloc && F.desloc[r]) || 0;
+    if (m >= 2) brilho.push([8 - m + d + 1, r + k]);
+  }
+  return (cacheForma[nome] = { set, k, brilho, linhas: 20 });
+}
 
 export const CORES = {
   azul:     { nome: "Azul",     base: "#4A9BF5", sombra: "#2F73D0", luz: "#9ED0FF", contorno: "#173A6B", bochecha: "#F7A8C8" },
@@ -37,12 +65,6 @@ export const HUMOR_TEXTO = {
   feliz: "radiante!",
 };
 
-// ------------------------------------------------------------------ forma (calculada uma vez)
-const DENTRO = new Set();
-for (let y = 0; y < MEIA.length; y++) {
-  for (let x = 8 - MEIA[y]; x <= 7 + MEIA[y]; x++) DENTRO.add(`${x},${y}`);
-}
-const dentro = (x, y) => DENTRO.has(`${x},${y}`);
 
 function misturar(a, b, t) {
   const p = (h) => [1, 3, 5].map((i) => parseInt(h.slice(i, i + 2), 16));
@@ -105,6 +127,7 @@ const ACESS = {
     ],
   },
   oculos: {
+    rosto: true,
     pal: { c: "#111111", d: "#1E1E2E", w: "#9FB6FF" },
     px: [
       [3, 15, "cccccc..cccccc"],
@@ -150,8 +173,11 @@ const ACESS = {
 };
 
 // ------------------------------------------------------------------ desenho
-export function gotaSVG(cor = "azul", humor = "normal", px = 6, label = "", acessorio = "nenhum") {
+export function gotaSVG(cor = "azul", humor = "normal", px = 6, label = "", acessorio = "nenhum", formaNome = FORMA_PADRAO) {
   const C = CORES[cor] || CORES.azul;
+  const FM = forma(formaNome);
+  const DENTRO = FM.set;
+  const dentro = (x, y) => DENTRO.has(`${x},${y}`);
   const palido = humor === "sede";
   const base = palido ? misturar(C.base, "#C9CED6", 0.45) : C.base;
   const sombra = palido ? misturar(C.sombra, "#A9B0BB", 0.45) : C.sombra;
@@ -163,7 +189,7 @@ export function gotaSVG(cor = "azul", humor = "normal", px = 6, label = "", aces
   const pg = (x, y, c) => pinta(OX + x, OY + y, c); // coordenadas da gota
 
   // contorno: tudo que encosta na gota por fora
-  for (let y = -1; y <= MEIA.length; y++)
+  for (let y = -1; y <= 20; y++)
     for (let x = -1; x <= 16; x++)
       if (!dentro(x, y) && (dentro(x + 1, y) || dentro(x - 1, y) || dentro(x, y + 1) || dentro(x, y - 1))) pg(x, y, C.contorno);
 
@@ -181,7 +207,7 @@ export function gotaSVG(cor = "azul", humor = "normal", px = 6, label = "", aces
   for (let x = 4; x <= 11; x++) pg(x, 19, sombra);
 
   // brilho
-  for (const [x, y] of [[5, 5], [4, 6], [4, 7], [3, 8], [3, 9]]) pg(x, y, "#FFFFFF");
+  for (const [x, y] of FM.brilho) pg(x, y, "#FFFFFF");
   pg(3, 11, "#FFFFFF");
 
   // rosto
@@ -224,7 +250,9 @@ export function gotaSVG(cor = "azul", humor = "normal", px = 6, label = "", aces
 
   // acessório por cima
   const a = ACESS[acessorio];
-  if (a) for (const [x0, y, s] of a.px) [...s].forEach((ch, i) => { if (ch !== ".") pinta(x0 + i, y, a.pal[ch]); });
+  // chapéus descem junto com o topo da gota nos formatos mais baixos
+  const desce = (y) => (a.rosto ? 0 : acessorio === "fone" ? (y < 13 ? FM.k : 0) : FM.k);
+  if (a) for (const [x0, y, s] of a.px) [...s].forEach((ch, i) => { if (ch !== ".") pinta(x0 + i, y + desce(y), a.pal[ch]); });
 
   // junta pixels vizinhos da mesma cor na mesma linha (SVG menor)
   let rects = "";

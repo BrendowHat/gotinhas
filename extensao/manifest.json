@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "Gotinhas",
-  "version": "2.1",
+  "version": "2.2",
   "description": "Sua meta de água em dupla, conectada ao site Gotinhas.",
   "permissions": [
     "storage",
