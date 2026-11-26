@@ -1,10 +1,10 @@
 // Cache do "esqueleto" do app para abrir rápido e funcionar sem internet.
 // Ao publicar uma versão nova, aumente o número abaixo.
-const VERSAO = "gotinhas-v17";
+const VERSAO = "gotinhas-v18";
 const ARQUIVOS = [
   "./", "index.html", "css/style.css", "js/app.js", "js/store.js", "js/gota.js",
   "js/firebase-config.js", "manifest.webmanifest",
-  "icons/icon-192-v2.png", "icons/icon-512-v2.png", "icons/apple-touch-icon-v2.png", "icons/favicon-32-v2.png",
+  "icons/icon-192-v2.png", "icons/icon-512-v2.png", "icons/apple-touch-icon-v2.png", "icons/favicon-32-v2.png", "icons/badge-96.png",
 ];
 
 self.addEventListener("install", (e) => {
@@ -44,7 +44,7 @@ self.addEventListener("push", (e) => {
     self.registration.showNotification(titulo, {
       body: d.body || "Hora de beber água 💧",
       icon: "icons/icon-192-v2.png",
-      badge: "icons/icon-192-v2.png",
+      badge: "icons/badge-96.png",
       tag: d.tag || "gotinhas",
       renotify: true,
       data: { url: d.url || "./" },
