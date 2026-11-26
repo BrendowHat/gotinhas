@@ -195,11 +195,11 @@ function cartaoPessoa(uid, key = S.hoje) {
   const pct = pctDe(d);
   const humor = humorDe(d.totalMl, d.metaMl, p.inicio, p.fim);
   const rosa = p.cor === "rosa";
-  return `<section class="caixa sombra pessoa">
+  return `<section class="caixa sombra pessoa" data-key="pessoa-${uid === S.user.uid ? "eu" : "ela"}">
     ${gotaSVG(p.cor, humor, 7, `${esc(p.nome)}: ${HUMOR_TEXTO[humor]}`, p.acessorio)}
     <span class="nome">${esc(p.nome) || "—"}</span>
     <span>${d.totalMl} / ${d.metaMl} ml</span>
-    <div class="barra ${rosa ? "rosa" : ""}"><i style="width:${pct}%"></i></div>
+    <div class="barra ${rosa ? "rosa" : ""}"><i style="transform:scaleX(${pct / 100})"></i></div>
     <span class="humor">${pct}% · ${HUMOR_TEXTO[humor]}</span>
   </section>`;
 }
@@ -217,7 +217,7 @@ function cartaoEsperando() {
 function linhaRegistro(r) {
   const dela = r.uid === S.ela;
   const quem = dela ? esc(perfilDe(S.ela).nome || "ela") : "você";
-  return `<div class="registro"><span class="h">${esc(r.h)}</span><span class="cresce">+${r.ml} ml</span><span class="tag ${dela ? "rosa" : ""}">${quem}</span></div>`;
+  return `<div class="registro" data-key="${esc(r.uid)}-${esc(r.id)}"><span class="h">${esc(r.h)}</span><span class="cresce">+${r.ml} ml</span><span class="tag ${dela ? "rosa" : ""}">${quem}</span></div>`;
 }
 
 function registrosMisturados(key) {
@@ -246,12 +246,12 @@ function telaLogin() {
     <div class="nuvem" style="right:26px;top:140px;width:80px"></div>
     <div class="centro">
       <div class="linha" style="align-items:flex-end;gap:16px">
-        ${gotaSVG("azul", "feliz", 9, "", "fone")}
-        <span style="margin-bottom:34px">${CORACAO_SVG("#F28DB2", 40)}</span>
-        ${gotaSVG("rosa", "feliz", 9, "", "laco")}
+        <span class="login-gota esq">${gotaSVG("azul", "feliz", 9, "", "fone")}</span>
+        <span class="login-coracao" style="margin-bottom:34px">${CORACAO_SVG("#F28DB2", 40)}</span>
+        <span class="login-gota dir">${gotaSVG("rosa", "feliz", 9, "", "laco")}</span>
       </div>
-      <h1 class="logo">Gotinhas</h1>
-      <p style="font-size:20px;max-width:280px">Água em dupla, um gole de cada vez.</p>
+      <h1 class="logo login-titulo">Gotinhas</h1>
+      <p class="login-sub" style="font-size:20px;max-width:280px">Água em dupla, um gole de cada vez.</p>
     </div>
     ${demo ? `
       <div class="aviso">Modo demo: o Firebase ainda não foi configurado. Tudo fica salvo só neste navegador.</div>
@@ -376,7 +376,7 @@ function telaEditar(key = S.hoje) {
     </section>
     <section style="display:flex;flex-direction:column;gap:8px">
       ${d.registros.length ? d.registros.map((r) => `
-        <div class="edit-linha" data-id="${esc(r.id)}">
+        <div class="edit-linha" data-id="${esc(r.id)}" data-key="${esc(r.id)}">
           <input type="time" value="${esc(r.h)}" aria-label="Horário" data-acao="hora">
           <button class="btn quadrado" data-acao="menos" aria-label="Tirar 50 ml" style="background:var(--azul-claro)">−</button>
           <span class="ml">${r.ml} ml</span>
@@ -384,10 +384,10 @@ function telaEditar(key = S.hoje) {
           <button class="btn quadrado perigo" data-acao="apagar" aria-label="Apagar registro">${ICONES.lixo}</button>
         </div>`).join("") : `<p class="sub">Nenhum registro nesse dia.</p>`}
     </section>
-    <button class="btn texto tracejado" data-acao="esquecido" data-key="${key}">+ Registro esquecido</button>
+    <button class="btn texto tracejado" data-acao="esquecido" data-dia="${key}">+ Registro esquecido</button>
     <div class="cresce"></div>
     <a class="btn prim grande" href="${ehHoje ? "#/hoje" : `#/dia/${key}`}">Pronto</a>
-    ${d.registros.length ? `<button class="link-btn" data-acao="zerar" data-key="${key}">Zerar o dia</button>` : ""}
+    ${d.registros.length ? `<button class="link-btn" data-acao="zerar" data-dia="${key}">Zerar o dia</button>` : ""}
   </div>`;
 }
 
@@ -521,7 +521,7 @@ function telaConfig() {
 function folhaOutro() {
   if (!S.folha) return "";
   const vals = [100, 200, 300, 350, 600, 1000];
-  return `<div class="fundo-folha" data-acao="folha-fechar">
+  return `<div class="fundo-folha ${S.folha.fechando ? "saindo" : ""}" data-acao="folha-fechar">
     <section class="folha" role="dialog" aria-modal="true" aria-label="Adicionar outra quantidade">
       <div class="alca"></div>
       <h2 style="font-size:13px">Quanto você bebeu?</h2>
@@ -718,6 +718,143 @@ function telaResumo() {
   </div>${nav("estrela")}`;
 }
 
+// ------------------------------------------------------------------ atualização sem recriar a tela
+// Compara a tela nova com a atual e mexe só no que mudou. Assim as transições de CSS funcionam
+// (a barra cresce em vez de pular) e só o que realmente entrou ganha animação de entrada.
+const ANIMA_AO_ENTRAR = ".registro, .edit-linha, .status, .fundo-folha";
+function mesmoNo(a, b) {
+  if (a.nodeType !== b.nodeType) return false;
+  if (a.nodeType !== 1) return true;
+  return a.nodeName === b.nodeName && (a.getAttribute("data-key") || "") === (b.getAttribute("data-key") || "");
+}
+function morphNo(a, b) {
+  if (a.nodeType === 3 || a.nodeType === 8) { if (a.nodeValue !== b.nodeValue) a.nodeValue = b.nodeValue; return; }
+  for (const at of [...a.attributes]) if (!b.hasAttribute(at.name) && at.name !== "data-novo") a.removeAttribute(at.name);
+  for (const at of [...b.attributes]) if (a.getAttribute(at.name) !== at.value) a.setAttribute(at.name, at.value);
+  if (a.tagName === "INPUT" || a.tagName === "SELECT" || a.tagName === "TEXTAREA") {
+    if (document.activeElement !== a) {
+      if (a.type === "checkbox" || a.type === "radio") a.checked = b.hasAttribute("checked");
+      else if (a.tagName !== "SELECT" && a.value !== (b.getAttribute("value") ?? "")) a.value = b.getAttribute("value") ?? "";
+    }
+    if (a.tagName !== "SELECT") return;
+    if (document.activeElement === a) return;
+  }
+  morph(a, b);
+  if (a.tagName === "SELECT") { const sel = [...b.options].findIndex((o) => o.hasAttribute("selected")); if (sel >= 0) a.selectedIndex = sel; }
+}
+function morph(pai, novoPai) {
+  const novos = [...novoPai.childNodes];
+  const porChave = new Map();
+  const repetidas = new Set();
+  for (const n of pai.childNodes) {
+    if (n.nodeType !== 1 || !n.dataset.key) continue;
+    if (porChave.has(n.dataset.key)) repetidas.add(n.dataset.key); // chave repetida: não confia nela
+    porChave.set(n.dataset.key, n);
+  }
+  for (const k of repetidas) porChave.delete(k);
+  novos.forEach((nb, i) => {
+    const atual = pai.childNodes[i];
+    let alvo = null;
+    const chave = nb.nodeType === 1 ? nb.dataset.key : null;
+    if (chave && porChave.has(chave)) { alvo = porChave.get(chave); porChave.delete(chave); }
+    else if (atual && !(atual.nodeType === 1 && atual.dataset.key && !chave) && mesmoNo(atual, nb)) alvo = atual;
+    if (alvo && mesmoNo(alvo, nb)) {
+      if (alvo !== atual) pai.insertBefore(alvo, atual || null);
+      morphNo(alvo, nb);
+    } else {
+      if (nb.nodeType === 1 && nb.matches(ANIMA_AO_ENTRAR) && pai.isConnected && $app.dataset.pronto) nb.setAttribute("data-novo", "");
+      pai.insertBefore(nb, atual || null);
+    }
+  });
+  while (pai.childNodes.length > novos.length) pai.removeChild(pai.lastChild);
+}
+requestAnimationFrame(() => requestAnimationFrame(() => { $app.dataset.pronto = "1"; }));
+
+// ------------------------------------------------------------------ movimento
+const reduzir = () => matchMedia("(prefers-reduced-motion: reduce)").matches;
+
+// Adiciona água; se for hoje, a gotinha "engole" e, se bateu a meta agora, comemora.
+async function adicionarComFesta(ml, h, key = S.hoje) {
+  const antes = diaDe(S.user.uid, key);
+  await adicionar(ml, h, key);
+  if (key !== S.hoje) return;
+  const card = $app.querySelector('[data-key="pessoa-eu"]');
+  if (!card || reduzir()) return;
+  const gota = card.querySelector("svg");
+  const bateuAgora = antes.totalMl < antes.metaMl && antes.totalMl + ml >= antes.metaMl;
+  if (bateuAgora) {
+    // raro (1 vez por dia): aqui cabe um pulinho com bounce e confete
+    gota.animate(
+      [{ transform: "translateY(0) scale(1)" }, { transform: "translateY(-14px) scale(1.08)", offset: 0.35 }, { transform: "translateY(0) scale(0.96)", offset: 0.7 }, { transform: "translateY(0) scale(1)" }],
+      { duration: 650, easing: "cubic-bezier(0.23, 1, 0.32, 1)" }
+    );
+    confete(card);
+  } else {
+    // frequente (dezenas por dia): gole discreto, quase imperceptível
+    gota.animate([{ transform: "scale(1, 1)" }, { transform: "scale(1.04, 0.94)" }, { transform: "scale(1, 1)" }], { duration: 180, easing: "cubic-bezier(0.23, 1, 0.32, 1)" });
+  }
+}
+
+function confete(origem) {
+  const r = origem.getBoundingClientRect();
+  const cx = r.left + r.width / 2, cy = r.top + r.height * 0.35;
+  const cores = ["#4A9BF5", "#F59AC0", "#FFC93C", "#6FD9B5", "#B49BF5", "#FFFFFF"];
+  for (let i = 0; i < 26; i++) {
+    const p = document.createElement("i");
+    p.className = "confete";
+    p.style.left = cx + "px"; p.style.top = cy + "px";
+    p.style.background = cores[i % cores.length];
+    document.body.appendChild(p);
+    const ang = (Math.PI * 2 * i) / 26 + Math.random() * 0.4;
+    const dist = 60 + Math.random() * 70;
+    const dx = Math.cos(ang) * dist, dy = Math.sin(ang) * dist - 30;
+    p.animate(
+      [{ transform: "translate(-50%, -50%) scale(1)", opacity: 1 }, { transform: `translate(calc(-50% + ${dx}px), calc(-50% + ${dy}px)) scale(1)`, opacity: 1, offset: 0.6 }, { transform: `translate(calc(-50% + ${dx}px), calc(-50% + ${dy + 40}px)) scale(0.6)`, opacity: 0 }],
+      { duration: 900 + Math.random() * 300, easing: "cubic-bezier(0.23, 1, 0.32, 1)" }
+    ).onfinish = () => p.remove();
+  }
+}
+
+// Folha "+ outro": sai pelo mesmo caminho que entrou
+function fecharFolha() {
+  const f = $app.querySelector(".fundo-folha");
+  if (!f || f.classList.contains("saindo")) { S.folha = null; render(true); return; }
+  f.classList.remove("arrastando");
+  f.querySelector(".folha").style.transform = "";
+  f.classList.add("saindo");
+  if (S.folha) S.folha.fechando = true; // se a tela redesenhar no meio, continua saindo
+  setTimeout(() => { S.folha = null; render(true); }, reduzir() ? 0 : 250);
+}
+
+// Arrastar a folha pra baixo pra fechar (skill gestures: segue o dedo 1:1, fecha por distância OU velocidade)
+let arraste = null;
+$app.addEventListener("pointerdown", (ev) => {
+  const folha = ev.target.closest(".folha");
+  if (!folha || arraste || ev.target.closest("button, input, select, label")) return;
+  ev.preventDefault(); // não seleciona texto enquanto arrasta
+  arraste = { folha, y0: ev.clientY, t0: performance.now(), dy: 0, id: ev.pointerId };
+  folha.setPointerCapture(ev.pointerId);
+  folha.closest(".fundo-folha").classList.add("arrastando");
+});
+$app.addEventListener("pointermove", (ev) => {
+  if (!arraste || ev.pointerId !== arraste.id) return;
+  let dy = ev.clientY - arraste.y0;
+  if (dy < 0) dy = -Math.sqrt(-dy) * 2; // pra cima: resistência em vez de parede
+  arraste.dy = dy;
+  arraste.folha.style.transform = `translateY(${dy}px)`;
+});
+function soltarArraste(ev) {
+  if (!arraste || ev.pointerId !== arraste.id) return;
+  const { folha, dy, t0 } = arraste;
+  arraste = null;
+  const vel = Math.abs(dy) / Math.max(1, performance.now() - t0);
+  if (dy > folha.offsetHeight * 0.3 || (dy > 10 && vel > 0.11)) return fecharFolha();
+  folha.closest(".fundo-folha").classList.remove("arrastando");
+  folha.style.transform = ""; // volta com a curva da gaveta
+}
+$app.addEventListener("pointerup", soltarArraste);
+$app.addEventListener("pointercancel", soltarArraste);
+
 // ------------------------------------------------------------------ render
 function digitando() {
   const a = document.activeElement;
@@ -747,9 +884,12 @@ function render(forcar = false) {
     else html = telaHoje();
     html += folhaOutro();
   }
-  const scroll = window.scrollY;
-  $app.innerHTML = demo + html;
-  window.scrollTo(0, scroll);
+  const novo = document.createElement("div");
+  novo.innerHTML = demo + html;
+  // cada tela tem sua chave: trocar de aba troca a tela inteira; dentro da mesma tela, só o que mudou
+  const tela = novo.querySelector(".tela, .carregando");
+  if (tela) tela.dataset.key = "tela-" + (S.user ? (S.perfil?.duplaId ? rota().nome : "x") : "login");
+  morph($app, novo);
   ajustarAgua(!!(S.user && S.perfil?.duplaId));
 }
 
@@ -816,7 +956,7 @@ $app.addEventListener("click", async (ev) => {
       localStorage.setItem("gotinhas-banner-ok", "1"); render(true);
       break;
     case "add":
-      await adicionar(Number(el.dataset.ml));
+      await adicionarComFesta(Number(el.dataset.ml));
       break;
     case "outro":
       S.folha = { ml: 300, h: agoraHHMM() }; render(true);
@@ -827,15 +967,14 @@ $app.addEventListener("click", async (ev) => {
       document.querySelectorAll(".chips-ml button").forEach((b) => b.classList.toggle("sel", b === el));
       break;
     case "folha-fechar":
-      S.folha = null; render(true);
+      fecharFolha();
       break;
     case "folha-ok": {
       const ml = parseInt(document.getElementById("folha-ml").value, 10);
       const h = document.getElementById("folha-h").value || agoraHHMM();
       if (!ml || ml <= 0) return;
-      S.folha = null;
-      await adicionar(Math.min(ml, 3000), h);
-      render(true);
+      fecharFolha();
+      await adicionarComFesta(Math.min(ml, 3000), h);
       break;
     }
     case "mais":
@@ -851,12 +990,12 @@ $app.addEventListener("click", async (ev) => {
       break;
     }
     case "esquecido": {
-      const key = el.dataset.key;
+      const key = el.dataset.dia;
       await adicionar(S.perfil.copoMl, key === S.hoje ? agoraHHMM() : "12:00", key);
       break;
     }
     case "zerar":
-      if (confirm("Apagar todos os registros desse dia?")) await mudarRegistros(el.dataset.key, () => []);
+      if (confirm("Apagar todos os registros desse dia?")) await mudarRegistros(el.dataset.dia, () => []);
       break;
     case "cutucar": {
       const ate = Number(localStorage.getItem("gotinhas-cutucada-ate") || 0);

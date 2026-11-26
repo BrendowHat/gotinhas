@@ -1,4 +1,8 @@
 :root {
+  /* curvas (Emil Kowalski / skill animate) */
+  --ease-out: cubic-bezier(0.23, 1, 0.32, 1);
+  --ease-in-out: cubic-bezier(0.77, 0, 0.175, 1);
+  --ease-drawer: cubic-bezier(0.32, 0.72, 0, 1);
   --ink: #12324F;
   --ink-2: #3A5A78;
   --ceu: #EAF5FF;
@@ -19,6 +23,17 @@
 
 * { box-sizing: border-box; }
 html, body { margin: 0; height: 100%; }
+html {
+  -webkit-tap-highlight-color: transparent;
+  -webkit-text-size-adjust: 100%;
+  overscroll-behavior: none;
+}
+button, a, label, [role="button"], input[type=checkbox], input[type=radio] { touch-action: manipulation; }
+button, .btn, .chip, nav.barra-nav a, .dia, .acess, .cor {
+  user-select: none;
+  -webkit-user-select: none;
+  -webkit-touch-callout: none;
+}
 body {
   background: var(--ceu);
   color: var(--ink);
@@ -48,7 +63,7 @@ a { color: var(--azul-esc); }
   left: 0; right: 0; bottom: 0;
   height: 2%;
   background: var(--agua);
-  transition: height 0.9s steps(9);
+  transition: height 600ms steps(6);
   pointer-events: none;
   z-index: 0;
 }
@@ -103,7 +118,8 @@ p { margin: 0; line-height: 1.4; }
   font-family: var(--pixel); font-size: 11px; line-height: 1.4;
   text-decoration: none; cursor: pointer;
 }
-.btn:active { transform: translate(2px, 2px); box-shadow: none !important; }
+.btn { transition: transform 160ms var(--ease-out), box-shadow 160ms var(--ease-out); }
+.btn:active:not([disabled]) { transform: translate(2px, 2px) scale(0.97); box-shadow: 0 0 0 var(--ink) !important; }
 .btn.prim { background: var(--azul-esc); color: #fff; box-shadow: 4px 4px 0 var(--ink); }
 .btn.grande { min-height: 60px; font-size: 13px; }
 .btn.texto { font-family: var(--corpo); font-size: 17px; }
@@ -118,7 +134,7 @@ p { margin: 0; line-height: 1.4; }
 label.campo { display: flex; flex-direction: column; gap: 6px; font-size: 16px; }
 .campo input, .campo select, input.pix {
   min-height: 48px; border: 3px solid var(--ink); border-radius: 0;
-  padding: 0 12px; background: #F7FBFF; font-family: var(--pixel); font-size: 13px; width: 100%;
+  padding: 0 12px; background: #F7FBFF; font-family: var(--pixel); font-size: 16px; width: 100%;
 }
 input[type=time].pix { font-family: var(--corpo); font-size: 17px; padding: 0 6px; }
 .erro { color: var(--perigo); font-size: 15px; min-height: 1em; }
@@ -129,7 +145,7 @@ input[type=time].pix { font-family: var(--corpo); font-size: 17px; padding: 0 6p
 .pessoa { display: flex; flex-direction: column; align-items: center; gap: 6px; text-align: center; }
 .pessoa .nome { font-family: var(--pixel); font-size: 10px; margin-top: 4px; overflow-wrap: anywhere; }
 .barra { width: 100%; height: 12px; border: 2px solid var(--ink); background: var(--ceu); }
-.barra i { display: block; height: 100%; background: var(--azul); transition: width .6s steps(6); }
+.barra i { display: block; height: 100%; background: var(--azul); transform-origin: left center; transition: transform 300ms var(--ease-out); }
 .barra.rosa i { background: var(--rosa); }
 .humor { font-size: 15px; color: var(--ink-2); }
 .status { padding: 12px 14px; text-align: center; border: 3px solid var(--ink); background: var(--azul-claro); }
@@ -228,4 +244,55 @@ nav.barra-nav a.ativo { background: var(--azul-claro); color: #0F4C9E; font-weig
    ocupa a largura toda em vez de ficar uma coluna estreita no meio */
 @media (pointer: coarse) {
   #app, nav.barra-nav, .folha { max-width: none; }
+}
+
+/* ================================================================== movimento
+   Regras das skills de Emil Kowalski: só transform/opacity, ease-out forte,
+   UI abaixo de 300 ms (gaveta é a exceção), nada animado no que é usado toda hora. */
+
+/* feedback de toque nos itens tocáveis que não são .btn */
+nav.barra-nav a, .dia, .chip, .chips-ml button, .cor span, .acess span, .link-btn {
+  transition: transform 160ms var(--ease-out);
+}
+nav.barra-nav a:active, .dia:active, a.chip:active, .chips-ml button:active, .cor span:active, .acess span:active { transform: scale(0.96); }
+
+/* registro novo (só quando entra numa lista que já estava na tela) */
+.registro[data-novo], .edit-linha[data-novo], .status[data-novo] {
+  transition: opacity 220ms var(--ease-out), transform 220ms var(--ease-out);
+  @starting-style { opacity: 0; transform: translateY(8px); }
+}
+
+/* folha "+ outro": gaveta de baixo (abre e fecha pelo mesmo caminho) */
+.fundo-folha { transition: background-color 400ms var(--ease-drawer); }
+.fundo-folha.arrastando, .folha h2 { user-select: none; -webkit-user-select: none; }
+.fundo-folha .folha { transition: transform 400ms var(--ease-drawer); will-change: transform; }
+.fundo-folha[data-novo] { @starting-style { background-color: rgba(18, 50, 79, 0); } }
+.fundo-folha[data-novo] .folha { @starting-style { transform: translateY(100%); } }
+.fundo-folha.saindo { background-color: rgba(18, 50, 79, 0); transition-duration: 250ms; }
+.fundo-folha.saindo .folha { transform: translateY(100%); transition-duration: 250ms; }
+.fundo-folha.arrastando .folha { transition: none; }
+.folha .alca { padding: 10px 40px; margin: -10px 0 -6px; background-clip: content-box; cursor: grab; touch-action: none; }
+
+/* entrada da tela de login (primeira vez, onde cabe encanto) */
+.login-gota { animation: chegar 600ms var(--ease-out) both; }
+.login-gota.esq { --de: -40px; }
+.login-gota.dir { --de: 40px; animation-delay: 80ms; }
+.login-coracao { animation: pulsar 520ms var(--ease-out) 420ms both; }
+.login-titulo { animation: subir 500ms var(--ease-out) 200ms both; }
+.login-sub { animation: subir 500ms var(--ease-out) 300ms both; }
+@keyframes chegar { from { opacity: 0; transform: translateX(var(--de)); } }
+@keyframes subir { from { opacity: 0; transform: translateY(10px); } }
+@keyframes pulsar { 0% { opacity: 0; transform: scale(0.6); } 60% { opacity: 1; transform: scale(1.15); } 100% { transform: scale(1); } }
+
+/* confete da meta batida */
+.confete { position: fixed; z-index: 30; width: 8px; height: 8px; pointer-events: none; }
+
+@media (prefers-reduced-motion: reduce) {
+  .btn, nav.barra-nav a, .dia, .chip, .chips-ml button, .cor span, .acess span, .barra i { transition: none; }
+  .registro[data-novo], .edit-linha[data-novo], .status[data-novo] { @starting-style { transform: none; } }
+  .fundo-folha[data-novo] .folha { @starting-style { transform: none; opacity: 0; } }
+  .fundo-folha .folha { transition: opacity 250ms ease; }
+  .fundo-folha.saindo .folha { transform: none; opacity: 0; }
+  .login-gota, .login-titulo, .login-sub, .login-coracao { animation-name: aparecer; }
+  @keyframes aparecer { from { opacity: 0; } }
 }

@@ -9,6 +9,7 @@ let erro = "";
 let offline = false;
 let cutucadaMsg = "";
 let cutucadaAte = 0;
+let pctAnterior = null;
 const esc = (s) => String(s ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
 
 function telaConectar() {
@@ -40,7 +41,7 @@ function render() {
       <span class="chip ${offline ? "offline" : "ok"}">${offline ? "sem internet" : "sincronizado"}</span>
     </header>
     <section class="caixa sombra linha" style="gap:16px">
-      <div class="copo" role="img" aria-label="Copo ${pct}% cheio"><div class="agua ${feito ? "cheia" : ""}" style="height:${pct}%"></div><span>${pct}%</span></div>
+      <div class="copo" role="img" aria-label="Copo ${pct}% cheio"><div class="agua ${feito ? "cheia" : ""}" style="clip-path:inset(${100 - pct}% 0 0 0)"></div><span>${pct}%</span></div>
       <div style="display:flex;flex-direction:column;gap:6px">
         <span class="ml">${eu.totalMl} / ${eu.metaMl} ml</span>
         <span class="sub">${feito ? "Meta batida! 🎉" : `Faltam ${eu.metaMl - eu.totalMl} ml até ${esc(perfil.fim)}`}</span>
@@ -81,6 +82,12 @@ function render() {
 
   const bc = document.getElementById("cutucar");
   if (bc) bc.onclick = fazerCutucada;
+  // a água sobe do nível anterior até o novo (clip-path: sem recalcular layout)
+  const agua = $.querySelector(".copo .agua");
+  if (agua && pctAnterior !== null && pctAnterior !== pct && !matchMedia("(prefers-reduced-motion: reduce)").matches) {
+    agua.animate([{ clipPath: `inset(${100 - pctAnterior}% 0 0 0)` }, { clipPath: `inset(${100 - pct}% 0 0 0)` }], { duration: 400, easing: "cubic-bezier(0.23, 1, 0.32, 1)" });
+  }
+  pctAnterior = pct;
   $.querySelectorAll("[data-ml]").forEach((b) => (b.onclick = () => add(Number(b.dataset.ml))));
   document.getElementById("btn-outro").onclick = () => { const o = document.getElementById("outro"); o.hidden = !o.hidden; if (!o.hidden) document.getElementById("outro-ml").focus(); };
   document.getElementById("outro-ok").onclick = () => { const n = parseInt(document.getElementById("outro-ml").value, 10); if (n > 0) add(Math.min(n, 3000)); };
